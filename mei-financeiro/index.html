@@ -434,7 +434,7 @@ function onb(i,a){
 }
 function focusCard(){return fiscBanner()+focusCard0()}
 function focusCard0(){
- const p=S.profile; if(!p)return "";
+ const p=S.profile; if(!p||!p.dor)return "";
  const m={lucro:["Seu foco: saber o lucro","Cada lançamento mostra quanto sobrou. Registre o que entra e o que sai."],das:["Seu foco: DAS em dia","O vencimento aparece aqui no painel. Marque como pago quando quitar."],mix:["Seu foco: separar as contas","Use a conta certa em cada lançamento. O app avisa quando parecer misturado."]}[p.dor];
  const s={2:"Você pode ser CLT e MEI ao mesmo tempo. Guarde o comprovante de cada serviço.",4:"Perto do limite? Teste cenários na aba Limite antes de aceitar serviços grandes."}[p.seg];
  return `<div class="card tip"><b>${m[0]}</b><div class="lbl" style="margin-top:2px">${m[1]}${s?" "+s:""}</div></div>`;
@@ -658,6 +658,7 @@ function conta(){
  $("#ov").className="ov on";
  $("#ov").innerHTML=`<div class="md"><h2>Conta e ajustes</h2>
  <div class="card" style="margin:10px 0"><b>Seu nome ou do negócio</b><div class="lbl">Aparece na saudação, nas propostas e no relatório.</div><input id="c-nm" value="${esc((S.id||{}).nome||"")}" placeholder="Ex.: Carlos Eletricista" style="margin-top:8px"></div>
+ <div class="card" style="margin:10px 0"><b>Sua atividade</b><div class="lbl">Define o valor do DAS: serviços ${brl(86.05)}, comércio ${brl(82.05)}, os dois ${brl(87.05)}.</div><div class="seg small" style="margin-top:8px">${[["s","Serviços"],["c","Comércio"],["sc","Os dois"]].map(([k,n])=>`<button data-rm="${k}" class="${((S.profile||{}).ramo||"s")===k?"on":""}">${n}</button>`).join("")}</div></div>
  <div class="card" style="margin:10px 0"><b>Aparência</b><div class="seg small" style="margin-top:8px">${[["light","Claro"],["dark","Escuro"],["auto","Automático"]].map(([k,n])=>`<button data-th="${k}" class="${(S.theme||"auto")===k?"on":""}">${n}</button>`).join("")}</div></div>
  <div class="card" style="margin:10px 0"><b>Backup na nuvem</b><div class="lbl">${si?(at?`Último backup: ${at}`:"Ainda sem backup."):"Entre na sua conta Claude para ativar o backup. Sem isso, os dados ficam só neste aparelho."}</div>
  ${si?`<div class="row" style="margin-top:8px"><button id="c-s">Salvar agora</button><button class="sec" id="c-r">Restaurar</button></div><label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" id="c-a" style="width:auto" ${S.cloud?"checked":""}>Salvar automaticamente a cada mudança</label>`:""}
@@ -668,6 +669,7 @@ function conta(){
  <div class="row" style="margin-bottom:8px"><button class="sec" id="c-pl">Planos</button><button class="sec" id="c-b2">Painel do contador</button></div><button class="pri" id="c-c">Fechar</button></div>`;
  $("#c-c").onclick=closeOv; $("#c-x").onclick=exportar;
  $("#c-nm").onchange=e=>{S.id={...(S.id||{}),nome:e.target.value.trim().slice(0,60)};save();home()};
+ $("#ov").querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{S.profile={seg:0,dor:"",...(S.profile||{}),ramo:b.dataset.rm};save();$("#f-rt").value=b.dataset.rm==="c"?"c":"s";$("#ov").querySelectorAll("[data-rm]").forEach(x=>x.classList.toggle("on",x===b));render();toast(`DAS de referência: ${brl(dasV())}`)});
  $("#ov").querySelectorAll("[data-th]").forEach(b=>b.onclick=()=>{S.theme=b.dataset.th;save();applyTheme();$("#ov").querySelectorAll("[data-th]").forEach(x=>x.classList.toggle("on",x===b))});
  $("#c-f").onclick=function(){if(!this.dataset.c){this.dataset.c=1;this.textContent="Confirmar: substitui os dados daqui";return}$("#c-fi").click()};
  $("#c-fi").onchange=async e=>{const f=e.target.files[0];e.target.value="";if(!f)return;try{const r=restoreObj(JSON.parse(await f.text()));if(!r){toast("Arquivo não reconhecido");return}S=r;save();applyTheme();closeOv();render();toast(`Dados restaurados: ${S.tx.length} lançamentos`)}catch(err){toast("Não consegui ler o arquivo")}}; $("#c-pl").onclick=()=>planos(); $("#c-b2").onclick=b2b;
@@ -1199,7 +1201,7 @@ document.addEventListener("keydown",e=>{
  const o=$("#ov");
  if(e.key==="Tab"&&o.classList.contains("on")){const F=[...o.querySelectorAll("button,input,select,textarea,a[href]")].filter(x=>!x.disabled&&x.offsetParent!==null);if(F.length){const a=F[0],z=F[F.length-1];if(e.shiftKey&&document.activeElement===a){e.preventDefault();z.focus()}else if(!e.shiftKey&&document.activeElement===z){e.preventDefault();a.focus()}}}
 });
-document.addEventListener("keydown",e=>{if(e.key==="Escape"&&S.profile)closeOv();if(e.key==="Enter"){const r=e.target.closest&&e.target.closest(".tx[data-id]");if(r)edit(r.dataset.id)}});
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeOv();if(e.key==="Enter"){const r=e.target.closest&&e.target.closest(".tx[data-id]");if(r)edit(r.dataset.id)}});
 
 function seed(){
   const tx=[]; let id=1;
@@ -1444,7 +1446,7 @@ applyTheme();
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&new Date().toDateString()!==now.toDateString())location.reload()});
 $("#hello").textContent=now.toLocaleDateString("pt-BR",{day:"numeric",month:"short"});
 $("#f-c").onchange=function(){this.dataset.m=1};
-if(!S.profile)onb(0);
+/* Sem questionário inicial: o app abre direto no painel. A atividade (para o valor do DAS) fica em Conta e ajustes. */
 $("#cfg").onclick=conta;wireAdd();wireDesp();buildSub();
 initCloud();
 notify();

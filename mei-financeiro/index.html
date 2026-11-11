@@ -439,7 +439,7 @@ function focusCard0(){
  const s={2:"Você pode ser CLT e MEI ao mesmo tempo. Guarde o comprovante de cada serviço.",4:"Perto do limite? Teste cenários na aba Limite antes de aceitar serviços grandes."}[p.seg];
  return `<div class="card tip"><b>${m[0]}</b><div class="lbl" style="margin-top:2px">${m[1]}${s?" "+s:""}</div></div>`;
 }
-function demo(){const d=seed();d.tx.forEach(t=>{if(t.t==="out")t.cat=guess(t.d)});S.tx=d.tx;S.nid=d.nid;save();render();toast("Dados de exemplo carregados")}
+function demo(){S=fixS({...seed(),theme:S.theme,ex:true});save();applyTheme();render();toast("Dados de exemplo carregados")}
 const txRow=t=>`<div class="tx" data-id="${t.id}" tabindex="0" role="button"><div>${esc(t.d)}<span class="tag">${t.acc}</span>${IM.get("t"+t.id)?'<span class="tag">📎</span>':""}${t.cat?`<span class="tag">${esc(t.cat)}</span>`:""}${t.sup?`<span class="tag">${esc(supName(t.sup))}</span>`:""}<small>${new Date(t.date).toLocaleDateString("pt-BR")}</small></div><div class="${t.t==="in"?"in-v":"out-v"}">${t.t==="in"?"+":"−"}${brl(t.v)}</div></div>`;
 const staleDays=()=>{if(!S.tx.length)return 0;const l=Math.max(...S.tx.map(t=>+new Date(t.date)));return Math.floor((Date.now()-l)/864e5)};
 const LES=[
@@ -1203,21 +1203,57 @@ document.addEventListener("keydown",e=>{
 });
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeOv();if(e.key==="Enter"){const r=e.target.closest&&e.target.closest(".tx[data-id]");if(r)edit(r.dataset.id)}});
 
+/* Dados de exemplo: Carlos Lima, eletricista MEI de serviços, com o ano todo preenchido
+   (lançamentos, DAS, boletos, dívidas, metas, fornecedores, orçamentos e agenda). As datas acompanham o dia de hoje. */
 function seed(){
-  const tx=[]; let id=1;
-  const rev=[5200,4800,6100,5500,5900,6300,5400,6000,5700];
+  const tx=[]; let id=1; const T=now.getDate();
+  const at=(y,m,d)=>new Date(y,m,Math.min(d,new Date(y,m+1,0).getDate()),12).toISOString();
+  const add=(v,t,acc,d,date,x={})=>tx.push({id:id++,v:Math.round(v*100)/100,t,acc,d,date,...(t==="out"?{cat:x.cat||guess(d)}:{rt:acc==="PJ"?(x.rt||"s"):""}),...(x.sup?{sup:x.sup}:{})});
+  const CLI=["Residencial Jardim Paulista","Padaria Pão Dourado","Dona Marta (casa)","Escola Pequeno Saber","Mercadinho São José","Clínica Bem-Estar","Sr. Antônio (sítio)","Salão Bela Vista","Condomínio Ipês","Oficina do Zé"];
+  const SVC=["Instalação elétrica","Manutenção preventiva","Troca de disjuntores","Instalação de chuveiro e tomadas","Revisão do quadro de luz","Iluminação em LED"];
+  const rev=[5200,4800,6100,5500,5900,6300,5400,6000,5700,6200];
+  /* fim de 2025, para a declaração anual (serviços e algumas vendas de material) */
+  [[9,4300],[10,4600],[11,5100]].forEach(([m,r],k)=>{add(r*.62,"in","PJ",`${SVC[k]} — ${CLI[k+4]}`,at(Y-1,m,9),{rt:"s"});add(r*.28,"in","PJ",`${SVC[k+2]} — ${CLI[k+1]}`,at(Y-1,m,19),{rt:"s"});add(r*.10,"in","PJ","Venda de material ao cliente",at(Y-1,m,23),{rt:"c"});add(1400+k*120,"out","PJ","Material elétrico",at(Y-1,m,6),{cat:"Material",sup:1});add(2000,"out","PJ","Retirada para casa",at(Y-1,m,28),{cat:"Retirada"})});
   for(let m=0;m<M;m++){
-    tx.push({id:id++,v:rev[m%9],t:"in",acc:"PJ",d:"Serviços do mês",rt:"s",date:new Date(Y,m,15,12).toISOString()});
-    tx.push({id:id++,v:1500+(m%3)*300,t:"out",acc:"PJ",d:"Material elétrico",date:new Date(Y,m,10).toISOString()});
+    const r=rev[m%rev.length];
+    add(r*.45,"in","PJ",`${SVC[m%6]} — ${CLI[m%10]}`,at(Y,m,4+(m%3)),{rt:"s"});
+    add(r*.33,"in","PJ",`${SVC[(m+2)%6]} — ${CLI[(m+3)%10]}`,at(Y,m,14),{rt:"s"});
+    if(m%4===1)add(r*.08,"in","PJ","Venda de material ao cliente",at(Y,m,18),{rt:"c"});
+    add(r*(m%4===1?.14:.22),"in","PJ",`${SVC[(m+4)%6]} — ${CLI[(m+6)%10]}`,at(Y,m,24),{rt:"s"});
+    add(1250+(m%3)*280,"out","PJ","Material elétrico",at(Y,m,7),{cat:"Material",sup:1+(m%2)});
+    add(360+(m%4)*25,"out","PJ","Combustível da van",at(Y,m,12),{cat:"Combustível"});
+    add(r*.019,"out","PJ","Taxa da maquininha",at(Y,m,26),{cat:"Taxas"});
+    add(89.9,"out","PJ","Plano de celular e internet",at(Y,m,10),{cat:"Outros"});
+    if(m%5===2)add(420+m*15,"out","PJ","Ferramentas (alicate, multímetro)",at(Y,m,16),{cat:"Ferramentas",sup:3});
+    if(m>=2)add(480,"out","PJ",`Parcela ${m-1} de 12 — Empréstimo Pronampe`,at(Y,m,15),{cat:"Dívidas"});
+    add(2000,"out","PJ","Retirada para casa",at(Y,m,28),{cat:"Retirada"});
+    add(680+(m%3)*40,"out","PF","Mercado do mês",at(Y,m,8),{cat:"Pessoal"});
+    add(185,"out","PF","Conta de luz de casa",at(Y,m,20),{cat:"Pessoal"});
   }
-  const d=(day)=>new Date(Y,M,Math.min(day,now.getDate()||1),12).toISOString();
-  tx.push({id:id++,v:1800,t:"in",acc:"PJ",d:"Instalação de quadro — cliente Marta",rt:"s",date:d(3)});
-  tx.push({id:id++,v:950,t:"in",acc:"PF",d:"Cliente Paulo — reparo de fiação",date:d(5)});
-  tx.push({id:id++,v:620,t:"out",acc:"PJ",d:"Material elétrico",date:d(6)});
-  tx.push({id:id++,v:84.9,t:"out",acc:"PJ",d:"iFood",date:d(8)});
-  tx.push({id:id++,v:1450,t:"in",acc:"PJ",d:"Manutenção residencial",rt:"s",date:d(10)});
-  tx.push({id:id++,v:230,t:"out",acc:"PJ",d:"Combustível",date:d(11)});
-  return {tx,das:{},nid:id};
+  /* mês atual até hoje, com dois lançamentos misturados para o app avisar */
+  const d=day=>at(Y,M,Math.min(day,T));
+  add(1800,"in","PJ","Instalação de quadro — Dona Marta (casa)",d(3),{rt:"s"});
+  add(950,"in","PF","Cliente Paulo — reparo de fiação",d(5));
+  add(620,"out","PJ","Material elétrico",d(6),{cat:"Material",sup:1});
+  add(84.9,"out","PJ","iFood",d(8),{cat:"Outros"});
+  add(89.9,"out","PJ","Plano de celular e internet",d(10),{cat:"Outros"});
+  add(1450,"in","PJ","Manutenção — Padaria Pão Dourado",d(10),{rt:"s"});
+  add(230,"out","PJ","Combustível da van",d(11),{cat:"Combustível"});
+  add(690,"out","PF","Mercado do mês",d(8),{cat:"Pessoal"});
+  /* DAS pago em todos os meses anteriores; o deste mês ainda não */
+  const das={}; for(let m=Y*12-3;m<Y*12+M;m++)das[m]=true;
+  const ymdOf=dt=>ymd(dt), plus=n=>{const x=new Date(Y,M,T,12);x.setDate(x.getDate()+n);return x};
+  const sup=[{id:id++,n:"Elétrica Silva",tel:"14 99812-3456",prod:"Fios, cabos e disjuntores",obs:"Entrega em 2 dias, aceita Pix"},{id:id++,n:"Casa do Eletricista",tel:"14 3491-2200",prod:"Lâmpadas LED e tomadas",obs:"Desconto à vista"},{id:id++,n:"Ferramentas Tupã",tel:"14 99644-1010",prod:"Ferramentas e EPI",obs:""}];
+  /* os ids de fornecedor usados acima (1, 2, 3) passam a apontar para estes cadastros */
+  tx.forEach(t=>{if(t.sup)t.sup=sup[t.sup-1].id});
+  const bol=[{id:id++,v:780,d:"Boleto Elétrica Silva — material da obra",due:ymdOf(plus(3)),cat:"Material",acc:"PJ",sup:sup[0].id},{id:id++,v:129.9,d:"Seguro da van (parcela)",due:ymdOf(plus(9)),cat:"Outros",acc:"PJ",sup:0},{id:id++,v:215,d:"Conta de água de casa",due:ymdOf(plus(-1)),cat:"Pessoal",acc:"PF",sup:0}];
+  const loans=[{id:id++,n:"Empréstimo Pronampe (Caixa)",total:5000,np:12,pv:480,first:ymd(new Date(Y,2,15,12)),acc:"PJ",pg:Array.from({length:Math.max(0,M-2)},(_,i)=>i),pgTx:{}},{id:id++,n:"Furadeira de impacto parcelada",total:780,np:6,pv:130,first:ymd(new Date(Y,M-3,10,12)),acc:"PJ",pg:[0,1,2],pgTx:{}}];
+  const mk=(n,v)=>({d:new Date(Y,M-n,5,12).toISOString(),v});
+  const goals=[{id:id++,n:"Reserva de emergência",t:6000,s:2650,s0:500,prazo:ymd(new Date(Y+1,5,30,12)),c:new Date(Y,M-5,1,12).toISOString(),dep:[mk(5,500),mk(4,450),mk(3,600),mk(1,600)]},{id:id++,n:"Escada e ferramentas novas",t:2500,s:900,s0:0,prazo:ymd(new Date(Y+1,2,31,12)),c:new Date(Y,M-3,1,12).toISOString(),dep:[mk(3,300),mk(2,300),mk(1,300)]}];
+  const c1=plus(-6).toISOString(), c2=plus(-12).toISOString(), c3=plus(-20).toISOString();
+  const orc=[{id:id++,num:1,cli:"Condomínio Ipês",tel:"14 99700-1122",itens:[{d:"Troca da iluminação da garagem por LED",q:1,p:2400},{d:"Luminárias LED 40 W",q:12,p:85}],dc:5,valid:ymdOf(plus(9)),pag:"50% na aprovação e 50% na entrega",obs:"Prazo de execução: 3 dias",st:"a",c:c1,hist:[{s:"a",d:c1}]},{id:id++,num:2,cli:"Clínica Bem-Estar",tel:"14 99555-8080",itens:[{d:"Revisão completa do quadro de luz",q:1,p:650},{d:"Instalação de tomadas 20 A",q:6,p:45}],dc:0,valid:ymdOf(plus(5)),pag:"Pix na conclusão",obs:"",st:"ok",c:c2,hist:[{s:"a",d:c2},{s:"ok",d:plus(-4).toISOString()}],rec:{v:920,date:ymdOf(plus(4)),done:false}},{id:id++,num:3,cli:"Salão Bela Vista",tel:"14 99123-4567",itens:[{d:"Instalação de ar-condicionado (parte elétrica)",q:2,p:380}],dc:0,valid:ymdOf(plus(-5)),pag:"",obs:"",st:"no",c:c3,hist:[{s:"a",d:c3},{s:"no",d:plus(-10).toISOString()}]}];
+  const ag=[{id:id++,t:"Visita técnica — Condomínio Ipês",d:ymdOf(plus(0)),h:"14:00",o:"Levar orçamento impresso",done:false},{id:id++,t:"Serviço na Clínica Bem-Estar",d:ymdOf(plus(2)),h:"08:00",o:"Revisão do quadro",done:false},{id:id++,t:"Comprar material na Elétrica Silva",d:ymdOf(plus(1)),h:"10:30",o:"",done:false},{id:id++,t:"Manutenção — Padaria Pão Dourado",d:ymdOf(plus(-2)),h:"07:30",o:"",done:true}];
+  return {tx,das,nid:id,sup,bol,loans,goals,orc,orcN:3,ag,id:{nome:"Carlos Lima",cnpj:"12.345.678/0001-90"},profile:{seg:0,ramo:"s",dor:""}};
 }
 function fixS(o){
  o=Object.assign({tx:[],das:{},nid:1,profile:null},o||{});
@@ -1236,6 +1272,8 @@ function restoreObj(o){
 function load(){try{const r=localStorage.getItem(KEY);if(r)return fixS(JSON.parse(r))}catch(e){}return fixS()}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}cloudQueue()}
 S=load();
+/* Primeira visita: abre com os dados de exemplo para simular o uso. "Começar com meus dados" apaga tudo. */
+try{if(!localStorage.getItem(KEY)){S=fixS({...seed(),ex:true});save()}}catch(e){}
 
 const ym=d=>{const x=new Date(d);return x.getFullYear()*12+x.getMonth()};
 const curYM=Y*12+M;
@@ -1305,7 +1343,8 @@ function home(){
   const empty=S.tx.length?"":`<div class="card empty">Ainda sem lançamentos.<br><button class="sec" data-act="demo" style="margin-top:10px">Ver com dados de exemplo</button></div>`;
   const colA=B(1,h)+B(3,quick)+B(5,chart6())+B(6,rec);
   const colB=B(2,`<div class="attn">${a}</div>`)+B(4,agHome())+B(7,goalsCard())+B(8,two)+B(9,focusCard0())+B(10,lesTip(c,dd))+B(11,empty);
-  $("#v-home").innerHTML=fiscBanner()+welcome+`<div class="hcols"><div class="hcol">${colA}</div><div class="hcol">${colB}</div></div>`;
+  const exb=S.ex?`<div class="alert a-warn" style="margin-bottom:14px"><b>Você está vendo dados de exemplo</b>Um eletricista MEI fictício, com o ano preenchido, para você explorar o app. Quando quiser usar de verdade, apague e comece do zero.<br><button data-act="exclear">Começar com meus dados</button></div>`:"";
+  $("#v-home").innerHTML=exb+fiscBanner()+welcome+`<div class="hcols"><div class="hcol">${colA}</div><div class="hcol">${colB}</div></div>`;
 }
 function setType(t){tType=t;document.querySelectorAll("#seg-t button").forEach(x=>x.className=x.dataset.t===t?"on "+t:"");hint()}
 
@@ -1436,6 +1475,7 @@ $(".app").onclick=e=>{
   if(b.dataset.act==="bpaid"){const id=+b.dataset.id,bl=(S.bol||[]).find(x=>x.id===id);if(bl){const n=S.nid++;S.tx.push({id:n,v:bl.v,t:"out",acc:bl.acc,d:bl.d,cat:bl.cat,sup:bl.sup,date:new Date().toISOString()});const u=IM.get("b"+id);if(u)IM.put("t"+n,u);IM.del("b"+id);S.bol=S.bol.filter(x=>x.id!==id);save();rr();track("tx");toast("Boleto lançado nos gastos")}}
   if(b.dataset.act==="rem")enableRem();
   if(b.dataset.act==="read"){S.read=S.read||{};S.read[b.dataset.id]=1;save();home()}
+  if(b.dataset.act==="exclear"){if(!b.dataset.c){b.dataset.c=1;b.textContent="Confirmar: apagar os dados de exemplo";return}IM&&IM.clear&&IM.clear();S=fixS({theme:S.theme});save();applyTheme();render();toast("Pronto. Comece lançando o que entrou e o que saiu.")}
   if(b.dataset.act==="das"){S.das[curYM]=true;save();home();toast("DAS marcado como pago")}
   if(b.dataset.act==="fix"){const t=S.tx.find(x=>x.id==b.dataset.id);if(t){t.acc=t.acc==="PJ"?"PF":"PJ";save();home();toast("Lançamento corrigido")}}
 };

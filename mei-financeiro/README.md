@@ -13,6 +13,7 @@ Controle financeiro para microempreendedor individual (MEI): lançamentos do neg
 - Tipo de receita (serviço ou venda de produto) e faturamento separado para a declaração anual (DASN-SIMEI).
 - Vencimento do DAS no dia 20 ou no próximo dia útil (fins de semana, feriados nacionais, Carnaval, Sexta-feira Santa e Corpus Christi).
 - Limite proporcional ao mês de abertura e projeção do ano pelo ritmo real.
+- Na primeira visita abre com dados de exemplo (Carlos Lima, eletricista MEI, com o ano preenchido) para simular o uso; o botão "Começar com meus dados" apaga tudo.
 - Abre direto no painel, sem questionário inicial; a atividade (serviços, comércio ou os dois) é escolhida em "Conta e ajustes".
 - Painel reorganizado: avisos importantes logo após o resumo e atalhos "Entrou dinheiro" e "Saiu dinheiro".
 - Textos maiores, contraste reforçado e modo escuro completo; escolha de tema e nome em "Conta e ajustes".

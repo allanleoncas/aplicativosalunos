@@ -4,7 +4,7 @@ Controle financeiro para microempreendedor individual (MEI): lançamentos do neg
 
 ## Como abrir
 
-- Abra `index.html` em qualquer navegador. Os dados ficam salvos no próprio navegador.
+- Acesse https://allanleoncas.github.io/aplicativosalunos/mei-financeiro/ ou abra `index.html` em qualquer navegador. Os dados ficam salvos no próprio navegador.
 - Recursos com IA (chat de dúvidas, leitura de nota por foto), backup na nuvem e downloads funcionam quando a página é publicada como artefato no Claude.
 
 ## Versão 2 (11/11/2026)

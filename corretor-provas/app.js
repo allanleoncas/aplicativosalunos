@@ -45,7 +45,7 @@ function novoId(){
   return 'A' + s;
 }
 function novaAvaliacao(){
-  const a = {id: novoId(), curso: '', disciplina: '', titulo: 'Avaliação', chamada: '', data: '', valor_total: 10,
+  const a = {id: novoId(), curso: '', disciplina: '', professor: db.professor || '', titulo: 'Avaliação', chamada: '', data: '', valor_total: 10,
     config: {n: 8, embaralharQuestoes: true, frenteVerso: true, mostrarTema: false, semente: 1},
     cabecalho: null, banco: [], alunos: [], gerado: null, resultados: {}, criada: new Date().toISOString()};
   db.avaliacoes[a.id] = a; db.ativa = a.id; salvarDB(); return a;
@@ -105,7 +105,7 @@ function sortear(a){
     const questoes = ordem.map(q => ({qid: q.id, perm: embaralhar(q.alts.map((_, i) => i), r)}));
     const gabarito = questoes.map(qq => LETRAS[qq.perm.indexOf(banco.find(q => q.id === qq.qid).correta)]).join('');
     const pad = a.alunos.length >= 100 ? 3 : 2;
-    saida.push({codigo: 'P' + String(idx + 1).padStart(pad, '0'), nome: al.nome, ra: al.ra || '', gabarito, questoes});
+    saida.push({codigo: 'P' + String(idx + 1).padStart(pad, '0'), nome: al.nome, ra: al.ra || '', cpf: al.cpf || '', gabarito, questoes});
   });
   return {quando: new Date().toISOString(), layout: 'OMR2', alunos: saida, unicas: assin.size};
 }
@@ -174,20 +174,34 @@ async function baixarModeloBanco(){
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(instr), 'Instruções');
   XLSX.writeFile(wb, 'modelo_banco_de_questoes.xlsx');
 }
+// CPF: guarda só os 3 primeiros números e os 2 dígitos finais (ex.: 123.***.***-45)
+function mascararCPF(v){
+  const s = String(v == null ? '' : v).trim(); if(!s) return '';
+  if(s.includes('*')) return s;
+  const d = s.replace(/\D/g, '').padStart(11, '0');
+  return d.length === 11 ? d.slice(0, 3) + '.***.***-' + d.slice(9) : '';
+}
+const pareceCPF = v => /^[\d.\-\s]+$/.test(String(v).trim()) && String(v).replace(/\D/g, '').length === 11;
 function interpretarAlunos(linhas){
-  // aceita planilha (Nome, RA) ou lista colada
+  // aceita planilha (Nome, RA, CPF) ou lista colada (nome; RA e/ou CPF)
   let iCab = linhas.findIndex(l => l.some(c => /^(nome|aluno|aluna|estudante)/.test(norm(c))));
-  let cNome = 0, cRA = 1;
+  let cNome = 0, cRA = -2, cCPF = -2;
   if(iCab >= 0){
     const cab = linhas[iCab].map(norm);
     cNome = cab.findIndex(c => /^(nome|aluno|aluna|estudante)/.test(c));
     cRA = cab.findIndex(c => /^(ra|matricula|registro|r\.a\.)/.test(c));
+    cCPF = cab.findIndex(c => /^cpf/.test(c));
   }
   const out = [];
   linhas.slice(iCab + 1).forEach(l => {
     const nome = String(l[cNome] || '').trim().replace(/\s+/g, ' ');
     if(!nome || nome.length < 3) return;
-    out.push({nome, ra: cRA >= 0 ? String(l[cRA] || '').trim() : ''});
+    const outros = l.filter((c, k) => k !== cNome).map(c => String(c || '').trim()).filter(Boolean);
+    let cpf = cCPF >= 0 ? String(l[cCPF] || '').trim() : (outros.find(pareceCPF) || '');
+    let ra = cRA >= 0 ? String(l[cRA] || '').trim() : (outros.find(c => c !== cpf) || '');
+    if(cRA >= 0 && cCPF < 0 && pareceCPF(ra) && !cpf) { cpf = ra; ra = ''; }
+    if(ra === cpf) ra = '';
+    out.push({nome, ra, cpf: mascararCPF(cpf)});
   });
   return out;
 }

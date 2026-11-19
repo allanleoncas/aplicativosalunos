@@ -66,6 +66,7 @@ function renderEditor(){
   h += '<div class="card"><div class="passo">1</div><h2>Dados da avaliação</h2>' +
     campo('Curso', 'curso', a.curso, 'Ex.: Direito') + campo('Disciplina', 'disciplina', a.disciplina, 'Ex.: Economia') +
     campo('Ano / período (sai no cabeçalho)', 'ano', a.ano || '', 'Ex.: 1º ano (vazio = ano da data)') +
+    campo('Nome do(a) professor(a)', 'professor', a.professor || '', 'Ex.: Prof. Dr. Fulano de Tal') +
     campo('Título', 'titulo', a.titulo, 'Ex.: Prova da Unidade 6') +
     '<label class="campo"><span>Chamada</span><input type="text" list="chamadas" value="' + esc(a.chamada || '') + '" placeholder="Ex.: Primeira chamada" onchange="setAv(\'chamada\', this.value.trim())"></label>' +
     '<datalist id="chamadas"><option>Primeira chamada</option><option>Segunda chamada</option><option>Exame</option><option>Recuperação</option></datalist>' +
@@ -97,9 +98,9 @@ function renderEditor(){
   // 4. alunos
   h += '<div class="card"><div class="passo">4</div><h2>Alunos</h2>' +
     (a.alunos.length ? '<p><b>' + a.alunos.length + ' alunos</b> na lista.</p><details><summary class="lbl">Ver lista</summary><ol class="alunos">' +
-       a.alunos.map(x => '<li>' + esc(x.nome) + (x.ra ? ' <span class="lbl">RA ' + esc(x.ra) + '</span>' : '') + '</li>').join('') + '</ol></details>'
-     : '<p class="muted">Envie uma planilha com as colunas Nome e RA, ou cole a lista abaixo (uma linha por aluno: nome e RA separados por tabulação ou ponto e vírgula).</p>') +
-    '<textarea id="txtAlunos" rows="4" placeholder="Maria da Silva;12345&#10;João Souza;12346"></textarea>' +
+       a.alunos.map(x => '<li>' + esc(x.nome) + (x.ra ? ' <span class="lbl">RA ' + esc(x.ra) + '</span>' : '') + (x.cpf ? ' <span class="lbl">CPF ' + esc(x.cpf) + '</span>' : '') + '</li>').join('') + '</ol></details>'
+     : '<p class="muted">Envie uma planilha com as colunas Nome, RA e CPF, ou cole a lista abaixo (uma linha por aluno: nome, RA e/ou CPF separados por tabulação ou ponto e vírgula). Do CPF, o app guarda e imprime só os 3 primeiros números e os 2 dígitos finais.</p>') +
+    '<textarea id="txtAlunos" rows="4" placeholder="Maria da Silva;12345;123.456.789-01&#10;João Souza;12346;987.654.321-00"></textarea>' +
     '<div class="row" style="margin-top:8px"><button class="btn sec" onclick="usarListaColada()">Usar lista colada</button>' +
     '<button class="btn sec" onclick="$(\'#arqAlunos\').click()">Enviar planilha</button></div></div>';
   // 5. provas
@@ -139,6 +140,7 @@ function setAv(k, v){
   const a = av();
   if(k === 'valor_total' && a.resultados){ a.valor_total = v; Object.entries(a.resultados).forEach(([c, r]) => { const al = alunosGerados(a).find(x => x.codigo === c); if(al) Object.assign(r, calcular(a, al, r.marcadas)); }); }
   else a[k] = v;
+  if(k === 'professor' && v) db.professor = v;
   salvarDB(); render();
 }
 function setCfg(k, v){

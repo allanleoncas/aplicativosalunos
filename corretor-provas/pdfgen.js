@@ -172,29 +172,40 @@
       var pIni = doc.getNumberOfPages(), n = al.questoes.length;
       var valor = (+av.valor_total || 10) / n;
       var y = cabecalhoImg(doc, av.cabecalho, M, av);
-      // faixa de identificação
-      var HB = 30;
-      cor(doc, 'Fill', [241, 244, 250]); cor(doc, 'Draw', LINHA); doc.setLineWidth(0.25);
-      doc.roundedRect(M, y, CW, HB, 2, 2, 'FD');
-      var xL = M + 4, xR = M + CW - 4;
-      fonte(doc, 'bold', 10.5); doc.text(doc.splitTextToSize(san('Aluno(a): ' + al.nome), CW - 50)[0], xL, y + 6.2);
-      fonte(doc, 'normal', 9.5); doc.text(san('RA: ' + (al.ra || '-')), xR, y + 6.2, { align: 'right' });
-      function rot(r, v, x, yy, dir) {
-        fonte(doc, 'bold', 8.8); var w = doc.getTextWidth(r + ' ');
-        if (dir) { fonte(doc, 'normal', 8.8); var wv = doc.getTextWidth(v); fonte(doc, 'bold', 8.8); doc.text(r, x - wv - 1.2, yy, { align: 'right' }); fonte(doc, 'normal', 8.8); doc.text(v, x, yy, { align: 'right' }); return; }
-        doc.text(r, x, yy); fonte(doc, 'normal', 8.8); doc.text(doc.splitTextToSize(v, 118 - w)[0] || '', x + w, yy);
-      }
-      rot('Curso:', san(av.curso || '-'), xL, y + 12.2); rot('Prova:', al.codigo, xR, y + 12.2, true);
-      rot('Disciplina:', san(av.disciplina || '-'), xL, y + 16.8); rot('Data:', av.data ? fmtData(av.data) : '____/____/______', xR, y + 16.8, true);
-      rot('Avaliação:', san([av.titulo, av.chamada].filter(Boolean).join(' - ') || '-'), xL, y + 21.4);
-      // valor em destaque
-      fonte(doc, 'bold', 10.5, CORAL); doc.text(san('Valor: ' + fmtNum(+av.valor_total || 10) + ' pontos'), xR, y + 21.6, { align: 'right' });
-      // assinatura
-      fonte(doc, 'bold', 8.8); doc.text('Assinatura do(a) aluno(a):', xL, y + 27);
-      cor(doc, 'Draw', [120, 126, 140]); doc.setLineWidth(0.3); doc.line(xL + 41, y + 27.4, xL + 132, y + 27.4);
-      fonte(doc, 'bold', 8.8); doc.text('Nota:', xR - 26, y + 27);
-      doc.line(xR - 16, y + 27.4, xR, y + 27.4);
-      y += HB + 3;
+      // quadro do aluno
+      var xL = M + 4, xR = M + CW - 4, CINZAL = [120, 126, 140];
+      function caixa(yy, h) { cor(doc, 'Fill', [241, 244, 250]); cor(doc, 'Draw', LINHA); doc.setLineWidth(0.25); doc.roundedRect(M, yy, CW, h, 2, 2, 'FD'); }
+      function linha(x1, x2, yy) { cor(doc, 'Draw', CINZAL); doc.setLineWidth(0.3); doc.line(x1, yy + 0.4, x2, yy + 0.4); }
+      function rotulo(t, x, yy, estilo, tam, c) { fonte(doc, estilo || 'bold', tam || 9, c); doc.text(san(t), x, yy); return x + doc.getTextWidth(san(t)) + 1.5; }
+      var H1 = 15;
+      caixa(y, H1);
+      var doc2 = al.cpf ? 'CPF: ' + al.cpf : (al.ra ? 'RA: ' + al.ra : 'CPF: ______________');
+      fonte(doc, 'bold', 10); var wDoc = doc.getTextWidth(san(doc2));
+      doc.text(san(doc2), xR, y + 6, { align: 'right' });
+      var nomeTxt = 'NOME: ' + String(al.nome || '').toUpperCase(), tamN = 10.5;
+      fonte(doc, 'bold', tamN);
+      while (tamN > 7.5 && doc.getTextWidth(san(nomeTxt)) > CW - 8 - wDoc - 6) { tamN -= 0.5; fonte(doc, 'bold', tamN); }
+      doc.text(san(nomeTxt), xL, y + 6);
+      var dt = 'Data da prova: ' + (av.data ? fmtData(av.data) : '____/____/______');
+      fonte(doc, 'bold', 9); var wDt = doc.getTextWidth(san(dt));
+      var xa = rotulo('Assinatura do(a) aluno(a):', xL, y + 12);
+      linha(xa, xR - wDt - 6, y + 12);
+      fonte(doc, 'bold', 9); doc.text(san(dt), xR, y + 12, { align: 'right' });
+      y += H1 + 2.5;
+      // quadro do professor
+      var H2 = 21;
+      caixa(y, H2);
+      var vt = 'VALOR DA PROVA: ' + fmtNum(+av.valor_total || 10) + ' PONTOS';
+      fonte(doc, 'bold', 10.5, CORAL); var wV = doc.getTextWidth(san(vt)); doc.text(san(vt), xR, y + 6, { align: 'right' });
+      var xp = rotulo('Nome do(a) professor(a):', xL, y + 6);
+      if (av.professor) { fonte(doc, 'normal', 9.5); doc.text(doc.splitTextToSize(san(av.professor), xR - wV - 6 - xp)[0] || '', xp, y + 6); }
+      else linha(xp, xR - wV - 6, y + 6);
+      var x2 = rotulo('Nota da prova:', xL, y + 12.5); linha(x2, x2 + 22, y + 12.5);
+      x2 = rotulo('Nota dos trabalhos:', x2 + 26, y + 12.5); linha(x2, x2 + 22, y + 12.5);
+      x2 = rotulo('NOTA FINAL (', x2 + 26, y + 12.5);
+      x2 = rotulo(')', x2 + 12, y + 12.5); linha(x2 + 1, xR, y + 12.5);
+      var xs = rotulo('Assinatura do(a) professor(a):', xL, y + 18.5); linha(xs, xL + 135, y + 18.5);
+      y += H2 + 3;
       fonte(doc, 'normal', 8.3, CINZA);
       var instr = doc.splitTextToSize(san(n + ' questões objetivas, valor total ' + fmtNum(+av.valor_total || 10) + ' pontos (' + fmtNum(valor) +
         ' cada), com uma única alternativa correta. Marque as respostas na FOLHA DE RESPOSTAS, no final da prova: somente ela será corrigida.'), CW);

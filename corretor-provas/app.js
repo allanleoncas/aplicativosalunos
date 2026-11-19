@@ -121,7 +121,12 @@ const norm = s => String(s == null ? '' : s).normalize('NFD').replace(/[̀-ͯ]/g
 async function lerPlanilha(arquivo){
   await carregarScript('lib/xlsx.full.min.js');
   const buf = await arquivo.arrayBuffer();
-  const wb = XLSX.read(buf, {type: 'array'});
+  let wb;
+  if(/\.(csv|txt)$/i.test(arquivo.name)){
+    // CSV: tenta UTF-8; se não for, lê como Windows-1252 (Excel antigo)
+    let txt; try { txt = new TextDecoder('utf-8', {fatal: true}).decode(buf); } catch(e){ txt = new TextDecoder('windows-1252').decode(buf); }
+    wb = XLSX.read(txt.replace(/^\uFEFF/, ''), {type: 'string'});
+  } else wb = XLSX.read(buf, {type: 'array'});
   const nome = wb.SheetNames.find(n => /quest|banco/i.test(n)) || wb.SheetNames[0];
   return XLSX.utils.sheet_to_json(wb.Sheets[nome], {header: 1, defval: '', raw: false});
 }
@@ -246,4 +251,4 @@ function baixarBlob(blob, nome){
   setTimeout(() => URL.revokeObjectURL(url), 4000);
 }
 const nomeArq = s => norm(s).replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 50) || 'avaliacao';
-async function pdfLibs(){ await carregarScript('lib/jspdf.umd.min.js'); await carregarScript('lib/qrcode.js'); await carregarScript('pdfgen.js'); }
+async function pdfLibs(){ await carregarScript('lib/jspdf.umd.min.js'); await carregarScript('logo.js'); await carregarScript('lib/qrcode.js'); await carregarScript('pdfgen.js'); }

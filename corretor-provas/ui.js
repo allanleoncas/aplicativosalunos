@@ -30,7 +30,7 @@ function renderLista(){
   lista.forEach(a => { const k = (a.curso || 'Sem curso') + '\u0000' + (a.disciplina || 'Sem disciplina'); (grupos[k] = grupos[k] || []).push(a); });
   let h = '<div class="stack" style="margin-bottom:14px"><button class="btn acc" onclick="criar()">+ Nova avaliação</button></div>';
   if(!lista.length){
-    h += '<div class="card"><h2>Nenhuma avaliação ainda</h2><p class="muted">Crie uma avaliação, envie o cabeçalho, o banco de questões e a lista de alunos, e o app gera uma prova diferente para cada aluno, com folha de respostas para correção pela câmera.</p>' +
+    h += '<div class="card"><h2>Nenhuma avaliação ainda</h2><p class="muted">Crie uma avaliação, envie o banco de questões e a lista de alunos (o cabeçalho da UNIFADAP já vem pronto), e o app gera uma prova diferente para cada aluno, com folha de respostas para correção pela câmera.</p>' +
          '<div class="stack" style="margin-top:12px"><button class="btn sec" onclick="carregarDemo()">Ver um exemplo pronto</button></div></div>';
   }
   Object.keys(grupos).sort((x, y) => x.localeCompare(y, 'pt-BR')).forEach(k => {
@@ -65,6 +65,7 @@ function renderEditor(){
   // 1. dados
   h += '<div class="card"><div class="passo">1</div><h2>Dados da avaliação</h2>' +
     campo('Curso', 'curso', a.curso, 'Ex.: Direito') + campo('Disciplina', 'disciplina', a.disciplina, 'Ex.: Economia') +
+    campo('Ano / período (sai no cabeçalho)', 'ano', a.ano || '', 'Ex.: 1º ano (vazio = ano da data)') +
     campo('Título', 'titulo', a.titulo, 'Ex.: Prova da Unidade 6') +
     '<label class="campo"><span>Chamada</span><input type="text" list="chamadas" value="' + esc(a.chamada || '') + '" placeholder="Ex.: Primeira chamada" onchange="setAv(\'chamada\', this.value.trim())"></label>' +
     '<datalist id="chamadas"><option>Primeira chamada</option><option>Segunda chamada</option><option>Exame</option><option>Recuperação</option></datalist>' +
@@ -76,10 +77,15 @@ function renderEditor(){
     check('frenteVerso', 'Impressão frente e verso (cada prova com nº par de páginas)', a.config.frenteVerso) +
     check('mostrarTema', 'Mostrar o tema/aula ao lado do número da questão', a.config.mostrarTema) + '</div>';
   // 2. cabeçalho
+  const anoCab = a.ano || (a.data ? a.data.slice(0, 4) : String(new Date().getFullYear()));
   h += '<div class="card"><div class="passo">2</div><h2>Cabeçalho</h2>' +
-    (a.cabecalho ? '<img class="cab" src="' + a.cabecalho.dataUrl + '" alt="Cabeçalho">' : '<p class="muted">Envie o cabeçalho da instituição como imagem (PNG, JPG) ou PDF. As margens brancas são recortadas automaticamente. Nome, RA e data do aluno são impressos logo abaixo dele.</p>') +
-    '<div class="row" style="margin-top:10px"><button class="btn sec" onclick="$(\'#arqCab\').click()">' + (a.cabecalho ? 'Trocar' : 'Enviar cabeçalho') + '</button>' +
-    (a.cabecalho ? '<button class="btn sec" onclick="setAv(\'cabecalho\', null)">Remover</button>' : '') + '</div></div>';
+    (a.cabecalho ? '<img class="cab" src="' + a.cabecalho.dataUrl + '" alt="Cabeçalho"><p class="lbl" style="margin-top:6px">Cabeçalho próprio enviado para esta avaliação.</p>'
+     : '<div class="cabpad"><img src="img/logo_unifadap.png" alt="UNIFADAP"><div><b>' + esc([(a.curso || 'CURSO').toUpperCase(), anoCab].join(' – ')) + '</b><b>' +
+       esc([a.titulo, a.chamada].filter(Boolean).join(' – ') || 'Tipo de prova') + '</b><b><i>' + esc((a.disciplina || 'DISCIPLINA').toUpperCase()) + '</i></b></div></div>' +
+       '<p class="muted" style="margin-top:6px">Cabeçalho padrão da UNIFADAP, preenchido sozinho com os dados do passo 1. Não precisa enviar nada.</p>') +
+    '<div class="row" style="margin-top:10px">' +
+    (a.cabecalho ? '<button class="btn sec" onclick="setAv(\'cabecalho\', null)">Voltar ao padrão UNIFADAP</button><button class="btn sec" onclick="$(\'#arqCab\').click()">Trocar</button>'
+     : '<button class="btn sec" onclick="$(\'#arqCab\').click()">Usar outro cabeçalho (imagem ou PDF)</button>') + '</div></div>';
   // 3. banco
   h += '<div class="card"><div class="passo">3</div><h2>Banco de questões</h2>' +
     (a.banco.length ? '<p><b>' + a.banco.length + ' questões</b> em ' + Object.keys(temas).length + ' tema(s):</p><ul class="temas">' +
@@ -104,7 +110,6 @@ function renderEditor(){
   else {
     h += '<p>' + a.alunos.length + ' provas com ' + Math.min(n, a.banco.length) + ' questões cada, sorteadas de ' + a.banco.length + ' (' +
          (comb >= a.alunos.length ? 'todas as combinações diferentes' : 'só há ' + comb + ' combinações possíveis: algumas provas vão repetir questões, mas com alternativas embaralhadas') + ').</p>' +
-         (!a.cabecalho ? '<div class="alerta">Sem cabeçalho: as provas sairão só com os dados do aluno.</div>' : '') +
          (n > a.banco.length ? '<div class="alerta">O banco tem menos questões que o número por prova.</div>' : '');
     h += '<div class="stack" style="margin-top:10px"><button class="btn acc" onclick="baixarProvas()">' + (g.length ? 'Baixar provas (PDF)' : 'Gerar provas (PDF)') + '</button>';
     if(g.length) h += '<button class="btn sec" onclick="baixarGabarito()">Baixar gabarito do professor (PDF)</button>' +

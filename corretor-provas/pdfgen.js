@@ -91,8 +91,34 @@
   }
 
   // ---------------- provas ----------------
-  function cabecalhoImg(doc, cab, y) {
-    if (!cab) return y;
+  // texto alinhado à direita, reduzindo a fonte se não couber na largura
+  function textoDir(doc, txt, x, y, larg, estilo, tam) {
+    fonte(doc, estilo, tam);
+    while (tam > 7 && doc.getTextWidth(txt) > larg) { tam -= 0.5; fonte(doc, estilo, tam); }
+    doc.text(txt, x, y, { align: 'right' });
+  }
+  function anoAv(av) {
+    if (av.ano) return av.ano;
+    if (av.data && /^\d{4}/.test(av.data)) return av.data.slice(0, 4);
+    return String(new Date().getFullYear());
+  }
+  // cabeçalho padrão UNIFADAP (modelo do professor): logo à esquerda; curso – ano, tipo de prova e disciplina à direita; linha azul
+  function cabecalhoPadrao(doc, av, y) {
+    var L = root.LOGO_UNIFADAP, lw = 52, lh = L ? lw * L.h / L.w : 18;
+    if (L) doc.addImage(L.dataUrl, 'PNG', M, y, lw, lh, undefined, 'FAST');
+    var xr = PW - M, larg = CW - lw - 6;
+    var l1 = san([(av.curso || '').toUpperCase(), anoAv(av)].filter(Boolean).join(' - '));
+    var l2 = san([av.titulo, av.chamada].filter(Boolean).join(' - '));
+    var l3 = san((av.disciplina || '').toUpperCase());
+    textoDir(doc, l1, xr, y + 5.2, larg, 'bold', 12.5);
+    textoDir(doc, l2, xr, y + 10.7, larg, 'bold', 12);
+    textoDir(doc, l3, xr, y + 16.2, larg, 'bolditalic', 12.5);
+    var yl = y + lh + 3.5;
+    cor(doc, 'Draw', NAVY); doc.setLineWidth(0.5); doc.line(M, yl, PW - M, yl);
+    return yl + 4;
+  }
+  function cabecalhoImg(doc, cab, y, av) {
+    if (!cab) return cabecalhoPadrao(doc, av, y);
     var w = CW, h = w * cab.h / cab.w, maxH = 55;
     if (h > maxH) { h = maxH; w = h * cab.w / cab.h; }
     doc.addImage(cab.dataUrl, cab.tipo || 'PNG', M + (CW - w) / 2, y, w, h, undefined, 'FAST');
@@ -145,7 +171,7 @@
       if (!primeira) doc.addPage(); primeira = false;
       var pIni = doc.getNumberOfPages(), n = al.questoes.length;
       var valor = (+av.valor_total || 10) / n;
-      var y = cabecalhoImg(doc, av.cabecalho, M);
+      var y = cabecalhoImg(doc, av.cabecalho, M, av);
       // faixa de identificação
       var HB = 30;
       cor(doc, 'Fill', [241, 244, 250]); cor(doc, 'Draw', LINHA); doc.setLineWidth(0.25);

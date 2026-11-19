@@ -6,7 +6,7 @@ Aplicativo para professores: gera provas objetivas individuais em PDF a partir d
 
 ## Fluxo
 1. **Avaliações** – crie uma avaliação (curso, disciplina, título, data, valor, questões por prova).
-2. **Cabeçalho** – envie o cabeçalho da instituição como imagem ou PDF (as margens brancas são recortadas).
+2. **Cabeçalho** – já vem o cabeçalho padrão da UNIFADAP (logo, curso – ano, avaliação e chamada, disciplina), preenchido com os dados do passo 1. Se quiser outro, envie uma imagem ou PDF (as margens brancas são recortadas).
 3. **Banco de questões** – baixe a planilha modelo, preencha (Tema, Nível, Enunciado, A–E, Correta, Comentário) e envie.
 4. **Alunos** – envie uma planilha (Nome, RA) ou cole a lista.
 5. **Provas** – o app sorteia uma prova diferente para cada aluno, cobrindo todos os temas, com questões e alternativas embaralhadas, e gera um PDF único: questões em duas colunas e folha de respostas compacta no rodapé da última página, de modo que cada prova caiba numa folha frente e verso e o gabarito do professor.

@@ -197,14 +197,16 @@
       caixa(y, H2);
       var vt = 'VALOR DA PROVA: ' + fmtNum(+av.valor_total || 10) + ' PONTOS';
       fonte(doc, 'bold', 10.5, CORAL); var wV = doc.getTextWidth(san(vt)); doc.text(san(vt), xR, y + 6, { align: 'right' });
-      var xp = rotulo('Nome do(a) professor(a):', xL, y + 6);
-      if (av.professor) { fonte(doc, 'normal', 9.5); doc.text(doc.splitTextToSize(san(av.professor), xR - wV - 6 - xp)[0] || '', xp, y + 6); }
+      var xp = rotulo('Professor(a):', xL, y + 6, 'normal');
+      if (av.professor) { fonte(doc, 'bold', 9.5); doc.text(doc.splitTextToSize(san(av.professor), xR - wV - 6 - xp)[0] || '', xp, y + 6); }
       else linha(xp, xR - wV - 6, y + 6);
-      var x2 = rotulo('Nota da prova:', xL, y + 12.5); linha(x2, x2 + 22, y + 12.5);
-      x2 = rotulo('Nota dos trabalhos:', x2 + 26, y + 12.5); linha(x2, x2 + 22, y + 12.5);
-      x2 = rotulo('NOTA FINAL (', x2 + 26, y + 12.5);
-      x2 = rotulo(')', x2 + 12, y + 12.5); linha(x2 + 1, xR, y + 12.5);
-      var xs = rotulo('Assinatura do(a) professor(a):', xL, y + 18.5); linha(xs, xL + 135, y + 18.5);
+      var x2 = rotulo('Nota da prova:', xL, y + 12.5); linha(x2, x2 + 25, y + 12.5);
+      x2 = rotulo('Nota dos trabalhos:', x2 + 32, y + 12.5); linha(x2, x2 + 25, y + 12.5);
+      // nota final (número entre parênteses e campo largo para escrever por extenso) e assinatura
+      var xa2 = xR - 52;
+      x2 = rotulo('NOTA FINAL (', xL, y + 18.5);
+      x2 = rotulo(')', x2 + 12, y + 18.5); linha(x2 + 1, xa2 - 6, y + 18.5);
+      var xs = rotulo('Assinatura:', xa2, y + 18.5); linha(xs, xR, y + 18.5);
       y += H2 + 3;
       fonte(doc, 'normal', 8.3, CINZA);
       var instr = doc.splitTextToSize(san(n + ' questões objetivas, valor total ' + fmtNum(+av.valor_total || 10) + ' pontos (' + fmtNum(valor) +

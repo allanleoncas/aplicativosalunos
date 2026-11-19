@@ -1,6 +1,6 @@
 /* Corretor de Provas – interface */
 'use strict';
-let editando = false, abaAtual = 'aval';
+let editando = false, abaAtual = 'aval', corrigindo = false;
 
 // =================== navegação ===================
 function aba(v){
@@ -120,7 +120,7 @@ function renderEditor(){
   h += '</div>';
   // 6. correção e relatório
   if(g.length) h += '<div class="card"><div class="passo">6</div><h2>Correção e relatório</h2><p>' + nRes + ' de ' + g.length + ' provas corrigidas.</p>' +
-    '<div class="stack" style="margin-top:10px"><button class="btn" onclick="aba(\'corrigir\')">Corrigir provas</button>' +
+    '<div class="stack" style="margin-top:10px"><button class="btn" onclick="corrigirAv(\'' + a.id + '\')">Corrigir provas</button>' +
     '<button class="btn sec" onclick="baixarRelatorio()">Baixar relatório de notas (PDF)</button>' +
     '<button class="btn sec" onclick="exportarCSV()">Exportar notas (planilha)</button></div></div>';
   h += '<div class="card"><h2>Backup</h2><div class="stack" style="margin-top:8px"><button class="btn sec" onclick="exportarBackup()">Exportar backup (.json)</button>' +
@@ -238,7 +238,7 @@ function carregarDemo(){
     {codigo: 'P03', nome: 'Aluno Exemplo Três', ra: '000003', gabarito: 'EDCBAEDC'}]};
   const nova = deGabaritoJSON(j);
   if(db.avaliacoes.DEMO) nova.resultados = db.avaliacoes.DEMO.resultados || {};
-  db.avaliacoes.DEMO = nova; db.ativa = 'DEMO'; salvarDB(); editando = false; aba('corrigir'); toast('Exemplo carregado');
+  db.avaliacoes.DEMO = nova; db.ativa = 'DEMO'; salvarDB(); editando = false; corrigirAv('DEMO'); toast('Exemplo carregado');
 }
 
 // =================== corrigir ===================
@@ -248,22 +248,41 @@ function seletorAv(onde){
   return '<label class="campo"><span>Avaliação</span><select onchange="db.ativa=this.value;salvarDB();render()">' +
     lista.map(a => '<option value="' + a.id + '"' + (a.id === db.ativa ? ' selected' : '') + '>' + esc([a.curso, a.disciplina, a.titulo].filter(Boolean).join(' · ')) + '</option>').join('') + '</select></label>';
 }
+function irCorrigir(){ corrigindo = false; aba('corrigir'); }
+function corrigirAv(id){ db.ativa = id; salvarDB(); corrigindo = true; editando = false; aba('corrigir'); }
 function renderCorrigir(){
-  const a = av(), g = alunosGerados(a);
-  if(!a || !g.length){
-    $('#v-corrigir').innerHTML = (seletorAv() ? '<div class="card">' + seletorAv() + '</div>' : '') + '<div class="card"><h2>Nada para corrigir ainda</h2><p class="muted">Gere as provas de uma avaliação (aba Avaliações) ou carregue o exemplo de demonstração.</p>' +
+  const lista = Object.values(db.avaliacoes).filter(x => alunosGerados(x).length);
+  if(!lista.length){
+    $('#v-corrigir').innerHTML = '<div class="card"><h2>Nada para corrigir ainda</h2><p class="muted">Gere as provas de uma avaliação (aba Avaliações) ou carregue o exemplo de demonstração.</p>' +
       '<div class="stack" style="margin-top:12px"><button class="btn sec" onclick="aba(\'aval\')">Ir para Avaliações</button><button class="btn sec" onclick="carregarDemo()">Carregar exemplo</button></div></div>';
     return;
   }
+  const a = av(), g = alunosGerados(a);
+  // lista das provas já geradas
+  if(!corrigindo || !a || !g.length){
+    let h = '<h2 style="margin:4px 2px 4px">Escolha a prova para corrigir</h2><p class="lbl" style="margin:0 2px 12px">' + lista.length + (lista.length > 1 ? ' provas geradas' : ' prova gerada') + ' neste aparelho</p>';
+    lista.sort((x, y) => (y.data || '').localeCompare(x.data || '') || (y.criada || '').localeCompare(x.criada || '')).forEach(x => {
+      const nG = alunosGerados(x).length, nC = Object.keys(x.resultados || {}).length;
+      h += '<div class="card avcard' + (x.id === db.ativa ? ' ativa' : '') + '" onclick="corrigirAv(\'' + x.id + '\')"><div class="row" style="align-items:center">' +
+        '<div style="flex:1;min-width:0"><div class="lbl" style="font-weight:700;text-transform:uppercase;letter-spacing:.04em">' + esc(x.curso || 'Sem curso') + '</div>' +
+        '<b>' + esc(x.disciplina || 'Sem disciplina') + '</b><div class="lbl">' + esc([x.titulo, x.chamada].filter(Boolean).join(' · ')) + (x.data ? ' · ' + fmtData(x.data) : '') + '</div></div>' +
+        '<div style="flex:none">' + (nC >= nG ? '<span class="pill ok">' + nC + '/' + nG + ' corrigidas</span>' : nC ? '<span class="pill warn">' + nC + '/' + nG + ' corrigidas</span>' : '<span class="pill">0/' + nG + ' corrigidas</span>') + '</div></div></div>';
+    });
+    $('#v-corrigir').innerHTML = h;
+    return;
+  }
   const notas = Object.values(a.resultados || {}).map(r => r.nota);
-  $('#v-corrigir').innerHTML = '<div class="card">' + seletorAv() + '<div class="lbl" style="margin-top:6px">Corrigidas</div><div class="big">' + notas.length +
+  $('#v-corrigir').innerHTML = '<button class="link" onclick="irCorrigir()">‹ Provas</button>' +
+    '<div class="card"><div class="lbl" style="font-weight:700;text-transform:uppercase;letter-spacing:.04em">' + esc(a.curso || '') + '</div><h2>' + esc(a.disciplina || 'Avaliação') + '</h2>' +
+    '<div class="lbl">' + esc([a.titulo, a.chamada].filter(Boolean).join(' · ')) + (a.data ? ' · ' + fmtData(a.data) : '') + '</div>' +
+    '<div class="lbl" style="margin-top:10px">Corrigidas</div><div class="big">' + notas.length +
     '<span class="muted" style="font-size:22px"> / ' + g.length + '</span></div><div class="kpis">' +
     '<div class="kpi"><span class="lbl">Média</span><b>' + (notas.length ? fmt(notas.reduce((x, y) => x + y, 0) / notas.length) : '–') + '</b></div>' +
     '<div class="kpi"><span class="lbl">Maior</span><b>' + (notas.length ? fmt(Math.max(...notas)) : '–') + '</b></div>' +
     '<div class="kpi"><span class="lbl">Menor</span><b>' + (notas.length ? fmt(Math.min(...notas)) : '–') + '</b></div></div></div>' +
     '<div class="stack"><button class="btn acc" onclick="abrirCamera()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Corrigir com a câmera</button>' +
     '<button class="btn sec" onclick="$(\'#arqFoto\').click()">Corrigir a partir de uma foto</button></div>' +
-    '<p class="lbl" style="margin-top:12px;text-align:center">Se a folha for de outra avaliação deste aparelho, o app troca sozinho.</p>';
+    '<p class="lbl" style="margin-top:12px;text-align:center">Se a folha for de outra prova deste aparelho, o app troca sozinho.</p>';
 }
 
 // =================== turma ===================

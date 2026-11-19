@@ -27,7 +27,7 @@ Abas: **Avaliações**, **Corrigir**, **Turma**.
    5. **Provas**: *Gerar provas (PDF)*, *Gabarito do professor (PDF)*, *Sortear de novo*.
    6. **Correção e relatório** (depois de gerar): corrigir, *Relatório de notas (PDF)*, *Exportar notas (CSV)*.
    7. **Backup**: exportar a avaliação em .json (para guardar ou passar para outro aparelho) e excluir.
-3. **Corrigir**: *Corrigir com a câmera* (leitura contínua; precisa de 2 leituras iguais seguidas) ou *Corrigir a partir de uma foto*. A tela de resultado mostra nota, acertos e cada questão; questões em branco, com dupla marcação ou marcação fraca ficam em amarelo, e o professor toca para escolher a letra. *Salvar e próxima* reabre a câmera. Se a folha for de outra avaliação salva no aparelho, o app troca sozinho.
+3. **Corrigir**: abre com a **lista das provas já geradas** no aparelho (curso, disciplina, título · chamada · data e "x/y corrigidas"); tocar numa prova abre a correção dela (*‹ Provas* volta à lista; o botão *Corrigir provas* do editor vai direto). Na correção: *Corrigir com a câmera* (leitura contínua; precisa de 2 leituras iguais seguidas) ou *Corrigir a partir de uma foto*. A tela de resultado mostra nota, acertos e cada questão; questões em branco, com dupla marcação ou marcação fraca ficam em amarelo, e o professor toca para escolher a letra. *Salvar e próxima* reabre a câmera. Se a folha for de outra avaliação salva no aparelho, o app troca sozinho.
 4. **Turma**: lista de alunos com nota ou "pendente", busca, relatório PDF e CSV.
 
 Também há um **exemplo de demonstração** (avaliação `DEMO`, 3 alunos) e o `kit_teste.pdf` com as folhas dele (layout OMR1).

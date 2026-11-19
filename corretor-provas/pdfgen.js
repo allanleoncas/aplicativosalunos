@@ -98,7 +98,6 @@
     doc.text(txt, x, y, { align: 'right' });
   }
   function anoAv(av) {
-    if (av.ano) return av.ano;
     if (av.data && /^\d{4}/.test(av.data)) return av.data.slice(0, 4);
     return String(new Date().getFullYear());
   }
@@ -108,7 +107,7 @@
     if (L) doc.addImage(L.dataUrl, 'PNG', M, y, lw, lh, undefined, 'FAST');
     var xr = PW - M, larg = CW - lw - 6;
     var l1 = san([(av.curso || '').toUpperCase(), anoAv(av)].filter(Boolean).join(' - '));
-    var l2 = san([av.titulo, av.chamada].filter(Boolean).join(' - '));
+    var l2 = san([av.titulo, av.chamada].filter(Boolean).join(' - ').toUpperCase());
     var l3 = san((av.disciplina || '').toUpperCase());
     textoDir(doc, l1, xr, y + 5.2, larg, 'bold', 12.5);
     textoDir(doc, l2, xr, y + 10.7, larg, 'bold', 12);

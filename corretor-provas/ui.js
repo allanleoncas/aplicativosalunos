@@ -65,7 +65,6 @@ function renderEditor(){
   // 1. dados
   h += '<div class="card"><div class="passo">1</div><h2>Dados da avaliação</h2>' +
     campo('Curso', 'curso', a.curso, 'Ex.: Direito') + campo('Disciplina', 'disciplina', a.disciplina, 'Ex.: Economia') +
-    campo('Ano / período (sai no cabeçalho)', 'ano', a.ano || '', 'Ex.: 1º ano (vazio = ano da data)') +
     campo('Nome do(a) professor(a)', 'professor', a.professor || '', 'Ex.: Prof. Dr. Fulano de Tal') +
     campo('Título', 'titulo', a.titulo, 'Ex.: Prova da Unidade 6') +
     '<label class="campo"><span>Chamada</span><input type="text" list="chamadas" value="' + esc(a.chamada || '') + '" placeholder="Ex.: Primeira chamada" onchange="setAv(\'chamada\', this.value.trim())"></label>' +
@@ -78,11 +77,11 @@ function renderEditor(){
     check('frenteVerso', 'Impressão frente e verso (cada prova com nº par de páginas)', a.config.frenteVerso) +
     check('mostrarTema', 'Mostrar o tema/aula ao lado do número da questão', a.config.mostrarTema) + '</div>';
   // 2. cabeçalho
-  const anoCab = a.ano || (a.data ? a.data.slice(0, 4) : String(new Date().getFullYear()));
+  const anoCab = (a.data ? a.data.slice(0, 4) : String(new Date().getFullYear()));
   h += '<div class="card"><div class="passo">2</div><h2>Cabeçalho</h2>' +
     (a.cabecalho ? '<img class="cab" src="' + a.cabecalho.dataUrl + '" alt="Cabeçalho"><p class="lbl" style="margin-top:6px">Cabeçalho próprio enviado para esta avaliação.</p>'
      : '<div class="cabpad"><img src="img/logo_unifadap.png" alt="UNIFADAP"><div><b>' + esc([(a.curso || 'CURSO').toUpperCase(), anoCab].join(' – ')) + '</b><b>' +
-       esc([a.titulo, a.chamada].filter(Boolean).join(' – ') || 'Tipo de prova') + '</b><b><i>' + esc((a.disciplina || 'DISCIPLINA').toUpperCase()) + '</i></b></div></div>' +
+       esc(([a.titulo, a.chamada].filter(Boolean).join(' – ') || 'Tipo de prova').toUpperCase()) + '</b><b><i>' + esc((a.disciplina || 'DISCIPLINA').toUpperCase()) + '</i></b></div></div>' +
        '<p class="muted" style="margin-top:6px">Cabeçalho padrão da UNIFADAP, preenchido sozinho com os dados do passo 1. Não precisa enviar nada.</p>') +
     '<div class="row" style="margin-top:10px">' +
     (a.cabecalho ? '<button class="btn sec" onclick="setAv(\'cabecalho\', null)">Voltar ao padrão UNIFADAP</button><button class="btn sec" onclick="$(\'#arqCab\').click()">Trocar</button>'

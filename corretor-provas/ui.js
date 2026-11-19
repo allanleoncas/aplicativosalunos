@@ -40,7 +40,8 @@ function renderInicio(){
   if(!lista.length){
     h += '<div class="card"><h2>Comece por aqui</h2><ol class="passos"><li>Crie uma avaliação com curso, disciplina e data.</li><li>Envie o banco de questões e a lista de alunos.</li>' +
          '<li>Gere as provas: cada aluno recebe uma prova diferente, já com o cabeçalho da UNIFADAP.</li><li>Depois da prova, corrija as folhas pela câmera do celular.</li></ol>' +
-         '<div class="stack" style="margin-top:12px"><button class="btn acc" onclick="novaDoPainel()">+ Nova avaliação</button><button class="btn sec" onclick="carregarDemo()">Ver um exemplo pronto</button></div></div>';
+         '<div class="stack" style="margin-top:12px"><button class="btn acc" onclick="novaDoPainel()">+ Nova avaliação</button><button class="btn sec" onclick="carregarDemo()">Ver um exemplo pronto</button></div></div>' +
+         '<p class="lbl" style="margin-top:6px;text-align:center;opacity:.7">Versão ' + VERSAO_APP + '</p>';
     $('#v-inicio').innerHTML = h; return;
   }
   let nGer = 0, nCor = 0, notas = [];
@@ -94,7 +95,8 @@ function renderInicio(){
     h += '<h3 class="sec">Rascunhos</h3>';
     semData.forEach(a => { h += '<div class="card avcard" onclick="abrirAv(\'' + a.id + '\')"><b>' + nomeAv(a) + '</b><div class="lbl">' + subAv(a) + ' · sem data</div></div>'; });
   }
-  h += '<p class="lbl" style="margin-top:14px;text-align:center">Os dados ficam só neste aparelho. Use "Exportar backup" em cada avaliação para passar para outro.</p>';
+  h += '<p class="lbl" style="margin-top:14px;text-align:center">Os dados ficam só neste aparelho. Use "Exportar backup" em cada avaliação para passar para outro.</p>' +
+       '<p class="lbl" style="margin-top:6px;text-align:center;opacity:.7">Versão ' + VERSAO_APP + '</p>';
   $('#v-inicio').innerHTML = h;
 }
 

@@ -43,7 +43,7 @@ ul.lista li:last-child{border-bottom:0}
 ul.lista .nome{flex:1;min-width:0}ul.lista .nome b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 ul.lista .nota{font-weight:800;font-size:17px;min-width:44px;text-align:right}
 nav.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);display:flex;justify-content:center;padding-bottom:env(safe-area-inset-bottom,0px);z-index:5}
-nav.tabs button{flex:1;max-width:173px;border:0;background:none;padding:10px 4px 9px;font:600 12px system-ui,sans-serif;color:var(--mute);display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer}
+nav.tabs button{flex:1;max-width:130px;border:0;background:none;padding:10px 4px 9px;font:600 12px system-ui,sans-serif;color:var(--mute);display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer}
 nav.tabs button.on{color:var(--acc)}
 nav.tabs svg{width:23px;height:23px}
 .view{display:none}.view.on{display:block}
@@ -99,6 +99,13 @@ details summary{cursor:pointer;margin-top:4px}
 #ocupado{position:fixed;inset:0;background:rgba(10,14,28,.55);z-index:60;display:none;align-items:center;justify-content:center}
 #ocupado.on{display:flex}#ocupado div{background:var(--card);color:var(--ink);padding:18px 22px;border-radius:14px;font-weight:700;display:flex;gap:12px;align-items:center}
 .spin{width:22px;height:22px;border:3px solid var(--line);border-top-color:var(--acc);border-radius:50%;animation:g .8s linear infinite}@keyframes g{to{transform:rotate(360deg)}}
+.ola{margin:2px 2px 12px}.ola h2{font-size:22px;letter-spacing:-.01em}
+.painel{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:10px}
+.kp{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px}.kp b{display:block;font-size:28px;font-weight:800;line-height:1.15}
+h3.sec{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--mute);margin:16px 2px 8px}
+.dia{flex:none !important;width:46px;height:50px;border-radius:10px;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1}
+.dia b{font-size:19px}.dia span{font-size:11.5px;color:var(--mute);text-transform:uppercase;font-weight:700}
+.barra-prog{height:6px;background:var(--bg);border-radius:9px;margin-top:10px;overflow:hidden}.barra-prog i{display:block;height:100%;background:var(--acc);border-radius:9px}
 </style>
 </head>
 <body>
@@ -107,13 +114,15 @@ details summary{cursor:pointer;margin-top:4px}
     <div class="logo"><svg width="24" height="24" viewBox="0 0 24 24"><circle cx="7" cy="8" r="3.4" fill="#FF3B5F"/><circle cx="17" cy="8" r="3.4" fill="none" stroke="#fff" stroke-width="1.6"/><circle cx="7" cy="17" r="3.4" fill="none" stroke="#fff" stroke-width="1.6"/><circle cx="17" cy="17" r="3.4" fill="#fff"/></svg></div>
     <div style="min-width:0"><h1>Corretor de Provas</h1><small id="subtitulo">Carregando…</small></div>
   </header>
-  <section class="view on" id="v-aval"></section>
+  <section class="view on" id="v-inicio"></section>
+  <section class="view" id="v-aval"></section>
   <section class="view" id="v-corrigir"></section>
   <section class="view" id="v-turma"></section>
 </div>
 
 <nav class="tabs">
-  <button class="on" data-v="aval" onclick="aba('aval')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>Avaliações</button>
+  <button class="on" data-v="inicio" onclick="aba('inicio')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg>Início</button>
+  <button data-v="aval" onclick="aba('aval')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>Avaliações</button>
   <button data-v="corrigir" onclick="irCorrigir()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Corrigir</button>
   <button data-v="turma" onclick="aba('turma')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>Turma</button>
 </nav>

@@ -1,6 +1,6 @@
 /* Corretor de Provas – interface */
 'use strict';
-let editando = false, abaAtual = 'aval', corrigindo = false;
+let editando = false, abaAtual = 'inicio', corrigindo = false;
 
 // =================== navegação ===================
 function aba(v){
@@ -12,9 +12,89 @@ function aba(v){
 function render(){
   const a = av();
   $('#subtitulo').textContent = a ? [a.disciplina, a.titulo].filter(Boolean).join(' · ') || 'Avaliação' : 'Nenhuma avaliação selecionada';
+  if(abaAtual === 'inicio') renderInicio();
   if(abaAtual === 'aval') editando && a ? renderEditor() : renderLista();
   if(abaAtual === 'corrigir') renderCorrigir();
   if(abaAtual === 'turma') renderTurma();
+}
+
+// =================== painel inicial ===================
+function hojeISO(){ const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function diasAte(iso){ return Math.round((new Date(iso + 'T12:00:00') - new Date(hojeISO() + 'T12:00:00')) / 86400000); }
+function quando(iso){
+  const d = diasAte(iso);
+  return d === 0 ? 'hoje' : d === 1 ? 'amanhã' : d > 1 ? 'em ' + d + ' dias' : d === -1 ? 'ontem' : 'há ' + (-d) + ' dias';
+}
+function nomeAv(a){ return esc(a.disciplina || 'Sem disciplina'); }
+function subAv(a){ return esc([a.curso, a.titulo, a.chamada].filter(Boolean).join(' · ')) + (a.data ? ' · ' + fmtData(a.data) : ''); }
+function barra(c, g){ const p = g ? Math.round(100 * c / g) : 0; return '<div class="barra-prog"><i style="width:' + p + '%"></i></div>'; }
+function abrirAv(id){ abrir(id); aba('aval'); }
+function novaDoPainel(){ novaAvaliacao(); editando = true; aba('aval'); }
+function renderInicio(){
+  const lista = Object.values(db.avaliacoes), hoje = hojeISO();
+  const h0 = new Date().getHours(), saud = h0 < 12 ? 'Bom dia' : h0 < 18 ? 'Boa tarde' : 'Boa noite';
+  const dataHoje = new Date().toLocaleDateString('pt-BR', {weekday: 'long', day: 'numeric', month: 'long'});
+  const pn = String(db.professor || '').replace(/\b(prof|profa|profª|professor|professora|dr|dra|me|ma|msc|esp)\.?\s+/gi, '').trim().split(/\s+/)[0] || '';
+  let h = '<div class="ola"><div class="lbl">' + esc(dataHoje.charAt(0).toUpperCase() + dataHoje.slice(1)) + '</div><h2>' + saud + (pn ? ', ' + esc(pn) : '') + '!</h2></div>';
+  if(!lista.length){
+    h += '<div class="card"><h2>Comece por aqui</h2><ol class="passos"><li>Crie uma avaliação com curso, disciplina e data.</li><li>Envie o banco de questões e a lista de alunos.</li>' +
+         '<li>Gere as provas: cada aluno recebe uma prova diferente, já com o cabeçalho da UNIFADAP.</li><li>Depois da prova, corrija as folhas pela câmera do celular.</li></ol>' +
+         '<div class="stack" style="margin-top:12px"><button class="btn acc" onclick="novaDoPainel()">+ Nova avaliação</button><button class="btn sec" onclick="carregarDemo()">Ver um exemplo pronto</button></div></div>';
+    $('#v-inicio').innerHTML = h; return;
+  }
+  let nGer = 0, nCor = 0, notas = [];
+  lista.forEach(a => { nGer += alunosGerados(a).length; Object.values(a.resultados || {}).forEach(r => { nCor++; notas.push(r.nota / ((+a.valor_total || 10)) * 10); }); });
+  h += '<div class="painel">' +
+    '<div class="kp"><span class="lbl">Avaliações</span><b>' + lista.length + '</b></div>' +
+    '<div class="kp"><span class="lbl">Provas geradas</span><b>' + nGer + '</b></div>' +
+    '<div class="kp"><span class="lbl">Corrigidas</span><b>' + nCor + '</b></div>' +
+    '<div class="kp"><span class="lbl">Falta corrigir</span><b' + (nGer - nCor ? ' style="color:var(--acc)"' : '') + '>' + (nGer - nCor) + '</b></div></div>';
+  h += '<div class="row" style="margin:4px 0 14px"><button class="btn acc" onclick="novaDoPainel()">+ Nova avaliação</button>' +
+       '<button class="btn" onclick="irCorrigir()">Corrigir provas</button></div>';
+  // próximas provas
+  const prox = lista.filter(a => a.data && a.data >= hoje).sort((x, y) => x.data.localeCompare(y.data));
+  if(prox.length){
+    h += '<h3 class="sec">Próximas provas</h3>';
+    prox.slice(0, 5).forEach(a => {
+      const g = alunosGerados(a).length;
+      const st = !a.banco.length ? '<span class="pill">falta o banco</span>' : !a.alunos.length ? '<span class="pill">faltam alunos</span>' :
+                 !g ? '<span class="pill warn">gerar provas</span>' : Object.keys(a.resultados || {}).length ? '<span class="pill ok">' + Object.keys(a.resultados).length + '/' + g + ' corrigidas</span>' : '<span class="pill ok">' + g + ' provas prontas</span>';
+      h += '<div class="card avcard" onclick="abrirAv(\'' + a.id + '\')"><div class="row" style="align-items:center"><div class="dia"><b>' + a.data.slice(8, 10) + '</b><span>' +
+           ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'][+a.data.slice(5, 7) - 1] + '</span></div>' +
+           '<div style="flex:1;min-width:0"><b>' + nomeAv(a) + '</b><div class="lbl">' + esc([a.curso, a.chamada].filter(Boolean).join(' · ')) + ' · ' + quando(a.data) + '</div></div>' +
+           '<div style="flex:none">' + st + '</div></div></div>';
+    });
+  }
+  // correção em andamento
+  const pend = lista.filter(a => { const g = alunosGerados(a).length; return g && Object.keys(a.resultados || {}).length < g && (!a.data || a.data <= hoje); })
+    .sort((x, y) => (y.data || '').localeCompare(x.data || ''));
+  if(pend.length){
+    h += '<h3 class="sec">Para corrigir</h3>';
+    pend.forEach(a => {
+      const g = alunosGerados(a).length, c = Object.keys(a.resultados || {}).length;
+      h += '<div class="card avcard" onclick="corrigirAv(\'' + a.id + '\')"><div class="row" style="align-items:center"><div style="flex:1;min-width:0"><b>' + nomeAv(a) + '</b><div class="lbl">' + subAv(a) + '</div></div>' +
+           '<div style="flex:none" class="lbl"><b style="color:var(--ink)">' + c + '</b> de ' + g + '</div></div>' + barra(c, g) + '</div>';
+    });
+  }
+  // concluídas
+  const feitas = lista.filter(a => { const g = alunosGerados(a).length; return g && Object.keys(a.resultados || {}).length >= g; })
+    .sort((x, y) => (y.data || '').localeCompare(x.data || ''));
+  if(feitas.length){
+    h += '<h3 class="sec">Corrigidas</h3>';
+    feitas.slice(0, 5).forEach(a => {
+      const ns = Object.values(a.resultados).map(r => r.nota), m = ns.reduce((x, y) => x + y, 0) / ns.length;
+      h += '<div class="card avcard" onclick="db.ativa=\'' + a.id + '\';salvarDB();aba(\'turma\')"><div class="row" style="align-items:center"><div style="flex:1;min-width:0"><b>' + nomeAv(a) + '</b><div class="lbl">' + subAv(a) + '</div></div>' +
+           '<div style="flex:none;text-align:right"><div class="lbl">média</div><b style="font-size:18px">' + fmt(m) + '</b><span class="lbl"> / ' + fmt(+a.valor_total || 10) + '</span></div></div></div>';
+    });
+  }
+  // rascunhos sem data
+  const semData = lista.filter(a => !a.data && !alunosGerados(a).length);
+  if(semData.length){
+    h += '<h3 class="sec">Rascunhos</h3>';
+    semData.forEach(a => { h += '<div class="card avcard" onclick="abrirAv(\'' + a.id + '\')"><b>' + nomeAv(a) + '</b><div class="lbl">' + subAv(a) + ' · sem data</div></div>'; });
+  }
+  h += '<p class="lbl" style="margin-top:14px;text-align:center">Os dados ficam só neste aparelho. Use "Exportar backup" em cada avaliação para passar para outro.</p>';
+  $('#v-inicio').innerHTML = h;
 }
 
 // =================== lista de avaliações ===================
@@ -491,4 +571,4 @@ function fecharRes(lerDeNovo){ $('#res').classList.remove('on'); if(lerDeNovo) a
 
 let tt = null;
 function toast(m){ const t = $('#toast'); t.textContent = m; t.classList.add('on'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('on'), 2600); }
-carregarDB().then(() => { aba(Object.values(db.avaliacoes).some(a => alunosGerados(a).length) ? 'aval' : 'aval'); });
+carregarDB().then(() => { aba('inicio'); });

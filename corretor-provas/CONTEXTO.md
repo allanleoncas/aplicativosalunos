@@ -16,7 +16,9 @@ Webapp para professores, criado pelo Prof. Dr. Allan Leon Casemiro da Silva (UNI
 
 ## 2. Como o professor usa
 
-Abas: **Avaliações**, **Corrigir**, **Turma**.
+Abas: **Início**, **Avaliações**, **Corrigir**, **Turma**.
+
+0. **Início** (abre ao entrar no app, `renderInicio()` em `ui.js`): saudação com o primeiro nome do professor e a data; 4 números (avaliações, provas geradas, corrigidas, falta corrigir); botões *+ Nova avaliação* e *Corrigir provas*; listas **Próximas provas** (data ≥ hoje, com dia/mês, "em N dias" e situação: falta o banco / faltam alunos / gerar provas / provas prontas / x/y corrigidas → abre a avaliação), **Para corrigir** (provas geradas com data ≤ hoje ou sem data e correção incompleta, com barra de progresso → abre a correção), **Corrigidas** (média → abre a Turma) e **Rascunhos** (sem data). Sem nenhuma avaliação: passo a passo + *Nova avaliação* + exemplo.
 
 1. **Avaliações** → *Nova avaliação*. As avaliações ficam agrupadas por curso e disciplina.
 2. Na avaliação, cinco passos:

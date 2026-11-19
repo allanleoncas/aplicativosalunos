@@ -1,0 +1,12 @@
+{
+ "formato": "corretor-provas-1",
+ "id": "DEMO",
+ "prova": "Prova de demonstração – Corretor de Provas",
+ "data": "",
+ "valor_total": 10,
+ "alunos": [
+  {"codigo": "P01", "nome": "Aluno Exemplo Um", "ra": "000001", "gabarito": "CAEBDACE"},
+  {"codigo": "P02", "nome": "Aluna Exemplo Dois", "ra": "000002", "gabarito": "BDACEBDA"},
+  {"codigo": "P03", "nome": "Aluno Exemplo Três", "ra": "000003", "gabarito": "EDCBAEDC"}
+ ]
+}

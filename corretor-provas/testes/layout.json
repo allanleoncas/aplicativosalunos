@@ -1,0 +1,9 @@
+{
+  "versao": "OMR1",
+  "unidade": "mm, origem no centro do marcador superior esquerdo",
+  "largura": 170,
+  "altura": 130,
+  "marcador": 9,
+  "qr": {"x": 128, "y": 8, "lado": 32},
+  "bolhas": {"x0": 32, "dx": 13, "y0": 52, "dy": 7.5, "raio": 2.9, "letras": "ABCDE", "max_questoes": 10}
+}

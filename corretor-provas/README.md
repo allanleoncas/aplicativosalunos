@@ -21,6 +21,7 @@ Tudo fica no navegador do aparelho (IndexedDB). Use **Exportar backup** para gua
 - `omr.js` – leitura óptica da folha (QR code, marcadores, homografia, bolhas).
 - `lib/` – bibliotecas: jsQR (Apache-2.0), jsPDF (MIT), qrcode-generator (MIT), SheetJS (Apache-2.0), pdf.js (Apache-2.0).
 - `kit_teste.pdf` – folhas da avaliação de demonstração.
+- `testes/` – fotos simuladas e teste do fluxo completo (ver `testes/README.md`).
 - `gerador/` – `layouts.json` com os dois layouts de folha que o app lê: OMR2 (compacta, no rodapé da última página, usada nas provas geradas) e OMR1 (página inteira, das folhas de teste). `folha.py` desenha a OMR1.
 
 O QR code da folha contém `OMR1|<id da avaliação>|<código do aluno>|<nº de questões>` e nunca as respostas.

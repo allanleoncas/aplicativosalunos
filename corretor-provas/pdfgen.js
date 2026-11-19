@@ -190,7 +190,7 @@
     av.gerado.alunos.forEach(function (al) {
       if (!primeira) doc.addPage(); primeira = false;
       var pIni = doc.getNumberOfPages(), n = al.questoes.length;
-      var V = root.valores ? root.valores(av, al) : { vq: (+av.valor_total || 10) / n, vdq: 0, nd: 0 }, valor = V.vq;
+      var V = root.valores ? root.valores(av, al) : { vq: (+av.valor_total || 10) / n, vdq: 0, nd: 0, total: +av.valor_total || 10 }, valor = V.vq;
       var discs = (al.disc || []).map(function (id) { return banco[id]; }).filter(Boolean);
       var y = cabecalhoImg(doc, av.cabecalho, M, av);
       // quadro do aluno
@@ -217,7 +217,7 @@
       // quadro do professor
       var H2 = 21;
       caixa(y, H2);
-      var vt = 'VALOR DA PROVA: ' + fmtNum(+av.valor_total || 10) + ' PONTOS';
+      var vt = 'VALOR DA PROVA: ' + fmtNum(V.total) + ' PONTOS';
       fonte(doc, 'bold', 10.5, CORAL); var wV = doc.getTextWidth(san(vt)); doc.text(san(vt), xR, y + 6, { align: 'right' });
       var xp = rotulo('Professor(a):', xL, y + 6, 'normal');
       if (av.professor) { fonte(doc, 'bold', 9.5); doc.text(doc.splitTextToSize(san(av.professor), xR - wV - 6 - xp)[0] || '', xp, y + 6); }
@@ -234,12 +234,13 @@
       var instr = doc.splitTextToSize(san(discs.length
         ? n + ' questões objetivas (' + fmtNum(valor) + ' ponto' + (valor === 1 ? '' : 's') + ' cada), com uma única alternativa correta, e ' + discs.length + ' questão' + (discs.length > 1 ? 'ões' : '') + ' discursiva' + (discs.length > 1 ? 's' : '') +
           ' (' + fmtNum(V.vdq) + ' ponto' + (V.vdq === 1 ? '' : 's') + ' cada). Marque as objetivas na FOLHA DE RESPOSTAS, no final da prova. Responda as discursivas, à caneta, nas linhas abaixo de cada uma.'
-        : n + ' questões objetivas, valor total ' + fmtNum(+av.valor_total || 10) + ' pontos (' + fmtNum(valor) +
+        : n + ' questões objetivas, valor total ' + fmtNum(V.total) + ' pontos (' + fmtNum(valor) +
         ' cada), com uma única alternativa correta. Marque as respostas na FOLHA DE RESPOSTAS, no final da prova: somente ela será corrigida.'), CW);
       doc.text(instr, M, y + 2.4, { lineHeightFactor: 1.25 }); y += alturaLinhas(instr.length, 8.3, 1.25) + 3;
       // fluxo em duas colunas
       var blocos = al.questoes.map(function (qq, k) { return blocoQuestao(doc, k + 1, banco[qq.qid], qq.perm, valor, opcoes.mostrarTema, COL); });
-      discs.forEach(function (q, k) { blocos.push(blocoDiscursiva(doc, n + k + 1, q, V.vdq, opcoes.mostrarTema, COL, +av.config.linhas || 8)); });
+      // discursivas: largura total da página, depois das objetivas
+      var blD = discs.map(function (q, k) { return blocoDiscursiva(doc, n + k + 1, q, V.vdq, opcoes.mostrarTema, CW, +av.config.linhas || 6); });
       // simula para saber em que página a folha cabe
       function distribuir() {
         var pos = [], pag = 0, col = 0, yy = y, topo = y;
@@ -253,10 +254,34 @@
         }
         return pos;
       }
-      var pos = distribuir(), ultima = pos.length ? pos[pos.length - 1].pag : 0;
+      var pos = distribuir(), ultima = pos.length ? pos[pos.length - 1].pag : 0, posD = [], pgFolha;
+      if (blD.length) {
+        // equilibra as duas colunas da última página das objetivas
+        var idx = [], topoU = ultima === 0 ? y : M + 2;
+        pos.forEach(function (o, k) { if (o.pag === ultima) idx.push(k); });
+        var melhor = null;
+        for (var sp = 0; sp <= idx.length; sp++) {
+          var h0 = 0, h1 = 0;
+          idx.forEach(function (k, i) { if (i < sp) h0 += blocos[k].altura; else h1 += blocos[k].altura; });
+          if (topoU + h0 <= FIM && topoU + h1 <= FIM && (!melhor || Math.max(h0, h1) < melhor.m)) melhor = { s: sp, m: Math.max(h0, h1) };
+        }
+        if (melhor) {
+          var c0 = topoU, c1 = topoU;
+          idx.forEach(function (k, i) {
+            if (i < melhor.s) { pos[k] = { pag: ultima, col: 0, y: c0 }; c0 += blocos[k].altura; }
+            else { pos[k] = { pag: ultima, col: 1, y: c1 }; c1 += blocos[k].altura; }
+          });
+        }
+        var pgD = ultima, yD = topoU + (melhor ? melhor.m : 0) + 1;
+        blD.forEach(function (b) {
+          if (yD + b.altura > FIM) { pgD++; yD = M + 2; }
+          posD.push({ pag: pgD, y: yD }); yD += b.altura;
+        });
+        pgFolha = yD <= topoFolha ? pgD : pgD + 1;
+      } else {
       // a folha vai no rodapé da última página; se as questões da última página invadem a área da folha, redistribui com limite
       function cabeFolha(p, pg) { return p.every(function (o, k) { return o.pag < pg || o.y + blocos[k].altura <= topoFolha; }); }
-      var pgFolha = ultima;
+      pgFolha = ultima;
       if (!cabeFolha(pos, ultima)) {
         // tenta empurrar as questões da última página para respeitar o limite da folha
         var pos2 = [], pag = 0, col = 0, topo = y, yy = y;
@@ -271,10 +296,16 @@
         pos = pos2; pgFolha = pos[pos.length - 1].pag;
         if (!cabeFolha(pos, pgFolha)) pgFolha++;
       }
+      }
       pos.forEach(function (o, k) {
         while (doc.getNumberOfPages() < pIni + o.pag) doc.addPage();
         doc.setPage(pIni + o.pag);
         blocos[k].desenhar(M + o.col * (COL + GAP), o.y);
+      });
+      posD.forEach(function (o, k) {
+        while (doc.getNumberOfPages() < pIni + o.pag) doc.addPage();
+        doc.setPage(pIni + o.pag);
+        blD[k].desenhar(M, o.y);
       });
       while (doc.getNumberOfPages() < pIni + pgFolha) doc.addPage();
       doc.setPage(pIni + pgFolha);

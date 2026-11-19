@@ -11,6 +11,7 @@ function aba(v){
 }
 function render(){
   const a = av();
+  Object.values(db.avaliacoes).forEach(atualizarValores);
   $('#subtitulo').textContent = a ? [a.disciplina, a.titulo].filter(Boolean).join(' · ') || 'Avaliação' : 'Nenhuma avaliação selecionada';
   if(abaAtual === 'inicio') renderInicio();
   if(abaAtual === 'aval') editando && a ? renderEditor() : renderLista();
@@ -150,14 +151,15 @@ function renderEditor(){
     '<label class="campo"><span>Chamada</span><input type="text" list="chamadas" value="' + esc(a.chamada || '') + '" placeholder="Ex.: Primeira chamada" onchange="setAv(\'chamada\', this.value.trim())"></label>' +
     '<datalist id="chamadas"><option>Primeira chamada</option><option>Segunda chamada</option><option>Exame</option><option>Recuperação</option></datalist>' +
     '<div class="row"><label class="campo"><span>Data</span><input type="date" value="' + esc(a.data) + '" onchange="setAv(\'data\', this.value)"></label>' +
-    '<label class="campo"><span>Valor da prova (pontos)</span><input type="number" min="0" step="0.5" value="' + esc(a.valor_total) + '" onchange="setAv(\'valor_total\', +this.value)"></label></div>' +
+    '<label class="campo"><span>Valor de cada objetiva (pontos)</span><input type="text" inputmode="decimal" value="' + fmt(a.config.vObj) + '" onchange="setValor(\'vObj\', this.value)"></label></div>' +
     '<label class="campo"><span>Questões objetivas por prova</span><select onchange="setCfg(\'n\', +this.value)">' +
     Array.from({length: 10}, (_, i) => '<option' + (i + 1 === n ? ' selected' : '') + '>' + (i + 1) + '</option>').join('') + '</select></label>' +
     '<label class="campo"><span>Questões discursivas por prova</span><select onchange="setCfg(\'nd\', +this.value)">' +
     Array.from({length: 6}, (_, i) => '<option value="' + i + '"' + (i === (+a.config.nd || 0) ? ' selected' : '') + '>' + (i ? i : 'Nenhuma') + '</option>').join('') + '</select></label>' +
-    ((+a.config.nd || 0) ? '<div class="row"><label class="campo"><span>Valor das discursivas (total, pontos)</span><input type="number" min="0" step="0.5" value="' + esc(a.config.valorDisc == null ? 2 : a.config.valorDisc) + '" onchange="setCfg(\'valorDisc\', +this.value)"></label>' +
-      '<label class="campo"><span>Linhas para resposta</span><select onchange="setCfg(\'linhas\', +this.value)">' + [5, 6, 8, 10, 12, 15, 20].map(x => '<option' + (x === (+a.config.linhas || 8) ? ' selected' : '') + '>' + x + '</option>').join('') + '</select></label></div>' +
-      (() => { const V = valores(a); return '<p class="lbl" style="margin-top:6px">Objetivas: ' + fmt(V.totalObj) + ' pontos (' + fmt(V.vq) + ' cada) · Discursivas: ' + fmt(V.totalDisc) + ' pontos (' + fmt(V.vdq) + ' cada). As objetivas são corrigidas pela câmera; a nota das discursivas você lança na tela de correção.</p>'; })() : '') +
+    ((+a.config.nd || 0) ? '<div class="row"><label class="campo"><span>Valor de cada discursiva (pontos)</span><input type="text" inputmode="decimal" value="' + fmt(a.config.vDisc) + '" onchange="setValor(\'vDisc\', this.value)"></label>' +
+      '<label class="campo"><span>Linhas para resposta</span><select onchange="setCfg(\'linhas\', +this.value)">' + [3, 4, 5, 6, 8, 10, 12, 15].map(x => '<option' + (x === (+a.config.linhas || 6) ? ' selected' : '') + '>' + x + '</option>').join('') + '</select></label></div>' : '') +
+    (() => { const V = valores(a); return '<div class="alerta" style="background:var(--bg);color:var(--ink)">Valor total da prova: <b>' + fmt(V.total) + ' pontos</b><br><span class="lbl">' + V.nObj + ' objetiva' + (V.nObj > 1 ? 's' : '') + ' × ' + fmt(V.vq) +
+      (V.nd ? ' + ' + V.nd + ' discursiva' + (V.nd > 1 ? 's' : '') + ' × ' + fmt(V.vdq) : '') + '. As objetivas são corrigidas pela câmera' + (V.nd ? '; a nota das discursivas você lança na correção' : '') + '.</span></div>'; })() +
     check('embaralharQuestoes', 'Embaralhar a ordem das questões', a.config.embaralharQuestoes) +
     check('frenteVerso', 'Impressão frente e verso (cada prova com nº par de páginas)', a.config.frenteVerso) +
     check('mostrarTema', 'Mostrar o tema/aula ao lado do número da questão', a.config.mostrarTema) + '</div>';
@@ -232,8 +234,13 @@ function setCfg(k, v){
   const a = av();
   if(['n', 'nd', 'embaralharQuestoes'].includes(k) && a.gerado && !alteraGerado()) return render();
   a.config[k] = v;
-  if(k === 'valorDisc') recalcularNotas(a);
+  atualizarValores(a); recalcularNotas(a);
   salvarDB(); render();
+}
+function setValor(k, v){
+  const a = av(), x = +String(v).replace(',', '.').trim();
+  if(isNaN(x) || x < 0) return render();
+  a.config[k] = x; atualizarValores(a); recalcularNotas(a); salvarDB(); render();
 }
 function recalcularNotas(a){
   Object.entries(a.resultados || {}).forEach(([c, r]) => { const al = alunosGerados(a).find(x => x.codigo === c); if(al) Object.assign(r, calcular(a, al, r.marcadas, r.disc)); });
@@ -290,6 +297,8 @@ function baixarProvas(){
     await pdfLibs(); const a = garantirGerado();
     const doc = PDFGEN.gerarProvas(a, LAYOUTS, {mostrarTema: a.config.mostrarTema});
     baixarBlob(doc.output('blob'), 'provas_' + nomeArq(a.disciplina + '_' + a.titulo) + '.pdf'); render();
+    const pp = doc.getNumberOfPages() / todosGerados(a).length;
+    if(pp > 2) setTimeout(() => alert('Atenção: cada prova ficou com ' + Math.ceil(pp) + ' páginas.' + ((+a.config.nd || 0) ? '\nPara caber em 2 páginas (frente e verso), diminua as linhas para resposta ou o número de questões.' : '')), 300);
   });
 }
 function baixarGabarito(){

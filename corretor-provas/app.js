@@ -47,8 +47,8 @@ function novoId(){
   return 'A' + s;
 }
 function novaAvaliacao(){
-  const a = {id: novoId(), curso: '', disciplina: '', professor: db.professor || '', titulo: 'Avaliação', chamada: '', data: '', valor_total: 10,
-    config: {n: 8, nd: 0, valorDisc: 2, linhas: 8, embaralharQuestoes: true, frenteVerso: true, mostrarTema: false, semente: 1},
+  const a = {id: novoId(), curso: '', disciplina: '', professor: db.professor || '', titulo: 'Avaliação', chamada: '', data: '', valor_total: 8,
+    config: {n: 8, nd: 0, vObj: 1, vDisc: 1, linhas: 6, embaralharQuestoes: true, frenteVerso: true, mostrarTema: false, semente: 1},
     cabecalho: null, banco: [], alunos: [], gerado: null, resultados: {}, criada: new Date().toISOString()};
   db.avaliacoes[a.id] = a; db.ativa = a.id; salvarDB(); return a;
 }
@@ -76,12 +76,27 @@ function combinacoes(n, k){ let c = 1; for(let i = 1; i <= k; i++){ c = c * (n -
 // tipos de questão: objetiva (A a E, lida pela câmera) e discursiva (D, nota lançada pelo professor)
 const objetivas = a => (a.banco || []).filter(q => q.tipo !== 'D');
 const discursivas = a => (a.banco || []).filter(q => q.tipo === 'D');
-// valor de cada objetiva e de cada discursiva
+// valor de cada objetiva e de cada discursiva (definidos pelo professor; o total da prova é calculado)
+const r2 = x => Math.round(x * 100) / 100;
 function valores(a, al){
-  const total = +a.valor_total || 10, nObj = al ? al.gabarito.length : Math.min(+a.config.n, MAXQ);
-  const nd = al ? (al.disc || []).length : Math.min(+a.config.nd || 0, discursivas(a).length);
-  const vd = nd ? Math.min(+a.config.valorDisc || 0, total) : 0;
-  return {vq: nObj ? (total - vd) / nObj : 0, vdq: nd ? vd / nd : 0, nObj, nd, totalObj: total - vd, totalDisc: vd};
+  const c = a.config, nObjB = objetivas(a).length, nDB = discursivas(a).length;
+  const nObj = al ? al.gabarito.length : Math.min(+c.n, MAXQ, nObjB || MAXQ);
+  const nd = al ? (al.disc || []).length : Math.min(+c.nd || 0, nDB || +c.nd || 0);
+  let vq, vdq;
+  if(c.vObj != null){ vq = +c.vObj || 0; vdq = +c.vDisc || 0; }
+  else { // avaliações antigas: valor total dividido
+    const total = +a.valor_total || 10, vd = nd ? Math.min(+c.valorDisc || 0, total) : 0;
+    vq = nObj ? (total - vd) / nObj : 0; vdq = nd ? vd / nd : 0;
+  }
+  return {vq, vdq, nObj, nd, totalObj: r2(nObj * vq), totalDisc: r2(nd * vdq), total: r2(nObj * vq + nd * vdq)};
+}
+// passa avaliações antigas para valores por questão e mantém o total atualizado
+function atualizarValores(a){
+  if(!a || !a.config) return;
+  if(a.config.vObj == null && !(a.gerado && a.gerado.importado)){
+    const V = valores(a); a.config.vObj = r2(V.vq); a.config.vDisc = r2(V.vdq || 1);
+  }
+  if(a.config.vObj != null){ const al = (a.gerado && a.gerado.alunos[0]) || null; a.valor_total = valores(a, al).total; }
 }
 function sortear(a){
   const banco = objetivas(a), n = Math.min(+a.config.n, banco.length, MAXQ);

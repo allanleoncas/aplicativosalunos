@@ -176,20 +176,20 @@
       function caixa(yy, h) { cor(doc, 'Fill', [241, 244, 250]); cor(doc, 'Draw', LINHA); doc.setLineWidth(0.25); doc.roundedRect(M, yy, CW, h, 2, 2, 'FD'); }
       function linha(x1, x2, yy) { cor(doc, 'Draw', CINZAL); doc.setLineWidth(0.3); doc.line(x1, yy + 0.4, x2, yy + 0.4); }
       function rotulo(t, x, yy, estilo, tam, c) { fonte(doc, estilo || 'bold', tam || 9, c); doc.text(san(t), x, yy); return x + doc.getTextWidth(san(t)) + 1.5; }
-      var H1 = 15;
+      var H1 = 18;
       caixa(y, H1);
       var doc2 = al.cpf ? 'CPF: ' + al.cpf : (al.ra ? 'RA: ' + al.ra : 'CPF: ______________');
-      fonte(doc, 'bold', 10); var wDoc = doc.getTextWidth(san(doc2));
-      doc.text(san(doc2), xR, y + 6, { align: 'right' });
-      var nomeTxt = 'NOME: ' + String(al.nome || '').toUpperCase(), tamN = 10.5;
+      fonte(doc, 'bold', 11); var wDoc = doc.getTextWidth(san(doc2));
+      doc.text(san(doc2), xR, y + 7, { align: 'right' });
+      var nomeTxt = 'NOME: ' + String(al.nome || '').toUpperCase(), tamN = 13;
       fonte(doc, 'bold', tamN);
       while (tamN > 7.5 && doc.getTextWidth(san(nomeTxt)) > CW - 8 - wDoc - 6) { tamN -= 0.5; fonte(doc, 'bold', tamN); }
-      doc.text(san(nomeTxt), xL, y + 6);
+      doc.text(san(nomeTxt), xL, y + 7);
       var dt = 'Data da prova: ' + (av.data ? fmtData(av.data) : '____/____/______');
       fonte(doc, 'bold', 9); var wDt = doc.getTextWidth(san(dt));
-      var xa = rotulo('Assinatura do(a) aluno(a):', xL, y + 12);
-      linha(xa, xR - wDt - 6, y + 12);
-      fonte(doc, 'bold', 9); doc.text(san(dt), xR, y + 12, { align: 'right' });
+      var xa = rotulo('Assinatura do(a) aluno(a):', xL, y + 14.5);
+      linha(xa, xR - wDt - 6, y + 14.5);
+      fonte(doc, 'bold', 9); doc.text(san(dt), xR, y + 14.5, { align: 'right' });
       y += H1 + 2.5;
       // quadro do professor
       var H2 = 21;

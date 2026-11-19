@@ -190,7 +190,13 @@
     av.gerado.alunos.forEach(function (al) {
       if (!primeira) doc.addPage(); primeira = false;
       var pIni = doc.getNumberOfPages(), n = al.questoes.length;
-      var V = root.valores ? root.valores(av, al) : { vq: (+av.valor_total || 10) / n, vdq: 0, nd: 0, total: +av.valor_total || 10 }, valor = V.vq;
+      var V = root.valores ? root.valores(av, al) : {};
+      // proteção: se algum valor vier faltando (ex.: versão antiga do app em cache), recalcula
+      if (!isFinite(V.vq)) V.vq = (+av.valor_total || 10) / n;
+      if (!isFinite(V.vdq)) V.vdq = 0;
+      if (!isFinite(V.total)) V.total = Math.round((n * V.vq + (al.disc || []).length * V.vdq) * 100) / 100;
+      if (!isFinite(V.total)) V.total = +av.valor_total || 10;
+      var valor = V.vq;
       var discs = (al.disc || []).map(function (id) { return banco[id]; }).filter(Boolean);
       var y = cabecalhoImg(doc, av.cabecalho, M, av);
       // quadro do aluno
@@ -232,7 +238,7 @@
       y += H2 + 3;
       fonte(doc, 'normal', 8.3, CINZA);
       var instr = doc.splitTextToSize(san(discs.length
-        ? n + ' questões objetivas (' + fmtNum(valor) + ' ponto' + (valor === 1 ? '' : 's') + ' cada), com uma única alternativa correta, e ' + discs.length + ' questão' + (discs.length > 1 ? 'ões' : '') + ' discursiva' + (discs.length > 1 ? 's' : '') +
+        ? n + ' questões objetivas (' + fmtNum(valor) + ' ponto' + (valor === 1 ? '' : 's') + ' cada), com uma única alternativa correta, e ' + discs.length + (discs.length > 1 ? ' questões' : ' questão') + ' discursiva' + (discs.length > 1 ? 's' : '') +
           ' (' + fmtNum(V.vdq) + ' ponto' + (V.vdq === 1 ? '' : 's') + ' cada). Marque as objetivas na FOLHA DE RESPOSTAS, no final da prova. Responda as discursivas, à caneta, nas linhas abaixo de cada uma.'
         : n + ' questões objetivas, valor total ' + fmtNum(V.total) + ' pontos (' + fmtNum(valor) +
         ' cada), com uma única alternativa correta. Marque as respostas na FOLHA DE RESPOSTAS, no final da prova: somente ela será corrigida.'), CW);

@@ -7,6 +7,7 @@ const LAYOUTS = {
     "bolhas":{"blocos":[{"x0":22,"y0":33},{"x0":84,"y0":33}],"porBloco":5,"dx":9,"dy":6.5,"raio":2.5,"letras":"ABCDE","max_questoes":10}}
 };
 const MAXQ = 10;
+const VERSAO_APP = '20261119c'; // mude a cada publicação para o navegador não usar arquivos antigos
 const LETRAS = 'ABCDE';
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -96,7 +97,9 @@ function atualizarValores(a){
   if(a.config.vObj == null && !(a.gerado && a.gerado.importado)){
     const V = valores(a); a.config.vObj = r2(V.vq); a.config.vDisc = r2(V.vdq || 1);
   }
-  if(a.config.vObj != null){ const al = (a.gerado && a.gerado.alunos[0]) || null; a.valor_total = valores(a, al).total; }
+  if(a.config.vObj != null && !isFinite(+a.config.vObj)) a.config.vObj = 1;
+  if(a.config.vDisc != null && !isFinite(+a.config.vDisc)) a.config.vDisc = 1;
+  if(a.config.vObj != null){ const al = (a.gerado && a.gerado.alunos[0]) || null, t = valores(a, al).total; if(isFinite(t)) a.valor_total = t; }
 }
 function sortear(a){
   const banco = objetivas(a), n = Math.min(+a.config.n, banco.length, MAXQ);
@@ -152,7 +155,7 @@ function sortear(a){
 let libsCarregadas = {};
 function carregarScript(src){
   if(libsCarregadas[src]) return libsCarregadas[src];
-  return libsCarregadas[src] = new Promise((ok, err) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = () => err(new Error('Falha ao carregar ' + src)); document.head.appendChild(s); });
+  return libsCarregadas[src] = new Promise((ok, err) => { const s = document.createElement('script'); s.src = /^lib\//.test(src) ? src : src + '?v=' + VERSAO_APP; s.onload = ok; s.onerror = () => err(new Error('Falha ao carregar ' + src)); document.head.appendChild(s); });
 }
 const norm = s => String(s == null ? '' : s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 

@@ -1,0 +1,4 @@
+{"OMR1":{"versao":"OMR1","largura":170,"altura":130,"marcador":9,"qr":{"x":128,"y":8,"lado":32},
+  "bolhas":{"x0":32,"dx":13,"y0":52,"dy":7.5,"raio":2.9,"letras":"ABCDE","max_questoes":10}},
+ "OMR2":{"versao":"OMR2","largura":180,"altura":64,"marcador":7,"qr":{"x":149,"y":9,"lado":25},
+  "bolhas":{"blocos":[{"x0":22,"y0":33},{"x0":84,"y0":33}],"porBloco":5,"dx":9,"dy":6.5,"raio":2.5,"letras":"ABCDE","max_questoes":10}}}

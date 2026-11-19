@@ -32,9 +32,12 @@
       }
     }
   }
+  function posBolha(B, q, j) {
+    if (B.blocos) { var b = B.blocos[Math.floor(q / B.porBloco)], r = q % B.porBloco; return [b.x0 + j * B.dx, b.y0 + r * B.dy]; }
+    return [B.x0 + j * B.dx, B.y0 + q * B.dy];
+  }
   function folha(doc, L, ox, oy, aluno, avId, n, titulo) {
-    var W = L.largura, H = L.altura, S = L.marcador, g = S / 2 + 3;
-    var P = function (x, y) { return [ox + x, oy + y]; };
+    var W = L.largura, H = L.altura, S = L.marcador, g = S / 2 + 3, compacta = !!L.bolhas.blocos;
     cor(doc, 'Draw', LINHA); doc.setLineWidth(0.25);
     [[g, 0, W - g, 0], [g, H, W - g, H], [0, g, 0, H - g], [W, g, W, H - g]].forEach(function (s) {
       doc.line(ox + s[0], oy + s[1], ox + s[2], oy + s[3]);
@@ -43,36 +46,48 @@
     [[0, 0], [W, 0], [0, H], [W, H]].forEach(function (c) { doc.rect(ox + c[0] - S / 2, oy + c[1] - S / 2, S, S, 'F'); });
     var Q = L.qr;
     desenharQR(doc, L.versao + '|' + avId + '|' + aluno.codigo + '|' + n, ox + Q.x, oy + Q.y, Q.lado);
-    fonte(doc, 'bold', 12, NAVY); doc.text('FOLHA DE RESPOSTAS', ox + 9, oy + 12);
-    fonte(doc, 'normal', 9.5);
-    var nome = doc.splitTextToSize(san('Aluno(a): ' + aluno.nome), 112)[0];
-    doc.text(nome, ox + 9, oy + 19.5);
-    doc.text(san('RA: ' + (aluno.ra || '') + '     Prova: ' + aluno.codigo), ox + 9, oy + 25.5);
-    if (titulo) { fonte(doc, 'normal', 8, CINZA); doc.text(doc.splitTextToSize(san(titulo), 112)[0], ox + 9, oy + 31); }
-    fonte(doc, 'normal', 8, [68, 74, 85]);
-    doc.text('Preencha totalmente uma bolha por questão, com caneta azul ou preta.', ox + 9, oy + 38);
-    doc.text('Não rasure, não dobre a folha e não escreva sobre o QR code ou os quadrados pretos.', ox + 9, oy + 42.5);
-    var B = L.bolhas, r = B.raio;
+    var tx = compacta ? 7 : 9, larg = Q.x - tx - 4;
+    if (compacta) {
+      fonte(doc, 'bold', 10.5, NAVY); doc.text('FOLHA DE RESPOSTAS', ox + tx, oy + 8.5);
+      fonte(doc, 'normal', 8.5);
+      doc.text(doc.splitTextToSize(san('Aluno(a): ' + aluno.nome), larg)[0], ox + tx, oy + 14);
+      doc.text(san('RA: ' + (aluno.ra || '') + '     Prova: ' + aluno.codigo), ox + tx, oy + 18.6);
+      fonte(doc, 'normal', 7, [68, 74, 85]);
+      doc.text('Preencha totalmente uma bolha por questão, com caneta azul ou preta. Não marque com X.', ox + tx, oy + 23.4);
+      doc.text('Não rasure e não escreva sobre o QR code ou os quadrados pretos.', ox + tx, oy + 26.6);
+    } else {
+      fonte(doc, 'bold', 12, NAVY); doc.text('FOLHA DE RESPOSTAS', ox + 9, oy + 12);
+      fonte(doc, 'normal', 9.5);
+      doc.text(doc.splitTextToSize(san('Aluno(a): ' + aluno.nome), 112)[0], ox + 9, oy + 19.5);
+      doc.text(san('RA: ' + (aluno.ra || '') + '     Prova: ' + aluno.codigo), ox + 9, oy + 25.5);
+      if (titulo) { fonte(doc, 'normal', 8, CINZA); doc.text(doc.splitTextToSize(san(titulo), 112)[0], ox + 9, oy + 31); }
+      fonte(doc, 'normal', 8, [68, 74, 85]);
+      doc.text('Preencha totalmente uma bolha por questão, com caneta azul ou preta.', ox + 9, oy + 38);
+      doc.text('Não rasure, não dobre a folha e não escreva sobre o QR code ou os quadrados pretos.', ox + 9, oy + 42.5);
+    }
+    var B = L.bolhas, r = B.raio, tl = compacta ? 6.6 : 7.5;
     for (var i = 0; i < n; i++) {
-      var y = B.y0 + i * B.dy;
-      fonte(doc, 'bold', 10, NAVY); doc.text((i < 9 ? '0' : '') + (i + 1), ox + B.x0 - 7, oy + y + 1.3, { align: 'right' });
+      var p0 = posBolha(B, i, 0);
+      fonte(doc, 'bold', compacta ? 9 : 10, NAVY); doc.text((i < 9 ? '0' : '') + (i + 1), ox + p0[0] - (compacta ? 5.5 : 7), oy + p0[1] + 1.2, { align: 'right' });
       for (var j = 0; j < B.letras.length; j++) {
-        var x = B.x0 + j * B.dx;
+        var p = posBolha(B, i, j);
         cor(doc, 'Draw', [90, 96, 112]); cor(doc, 'Fill', [255, 255, 255]); doc.setLineWidth(0.28);
-        doc.circle(ox + x, oy + y, r, 'FD');
-        fonte(doc, 'normal', 7.5, [160, 165, 176]); doc.text(B.letras[j], ox + x, oy + y + 0.95, { align: 'center' });
+        doc.circle(ox + p[0], oy + p[1], r, 'FD');
+        fonte(doc, 'normal', tl, [160, 165, 176]); doc.text(B.letras[j], ox + p[0], oy + p[1] + tl * PT * 0.36, { align: 'center' });
       }
     }
-    var ex = 112, ey = 60;
-    fonte(doc, 'bold', 8, [68, 74, 85]); doc.text('Como marcar', ox + ex, oy + ey - 6);
+    var ex = compacta ? 132 : 112, ey = compacta ? 41 : 60, dy = compacta ? 6.5 : 8;
+    fonte(doc, 'bold', compacta ? 7.5 : 8, [68, 74, 85]); doc.text('Como marcar', ox + ex, oy + ey - (compacta ? 4.5 : 6));
     cor(doc, 'Fill', [0, 0, 0]); doc.circle(ox + ex + 3, oy + ey, r, 'F');
-    fonte(doc, 'normal', 8, [23, 116, 74]); doc.text('Certo', ox + ex + 8, oy + ey + 1.2);
-    cor(doc, 'Draw', [90, 96, 112]); cor(doc, 'Fill', [255, 255, 255]); doc.circle(ox + ex + 3, oy + ey + 8, r, 'FD');
+    fonte(doc, 'normal', compacta ? 7.5 : 8, [23, 116, 74]); doc.text('Certo', ox + ex + 7.5, oy + ey + 1.2);
+    cor(doc, 'Draw', [90, 96, 112]); cor(doc, 'Fill', [255, 255, 255]); doc.circle(ox + ex + 3, oy + ey + dy, r, 'FD');
     cor(doc, 'Draw', [0, 0, 0]); doc.setLineWidth(0.35);
-    doc.line(ox + ex + 1.2, oy + ey + 6.2, ox + ex + 4.8, oy + ey + 9.8); doc.line(ox + ex + 1.2, oy + ey + 9.8, ox + ex + 4.8, oy + ey + 6.2);
-    fonte(doc, 'normal', 8, [184, 50, 40]); doc.text('Errado (não marque com X)', ox + ex + 8, oy + ey + 9.2);
-    fonte(doc, 'normal', 8, [68, 74, 85]); doc.text('Nota:', ox + 112, oy + 112);
-    cor(doc, 'Draw', LINHA); doc.setLineWidth(0.25); doc.line(ox + 121, oy + 112.5, ox + 154, oy + 112.5);
+    var k = r * 0.62;
+    doc.line(ox + ex + 3 - k, oy + ey + dy - k, ox + ex + 3 + k, oy + ey + dy + k); doc.line(ox + ex + 3 - k, oy + ey + dy + k, ox + ex + 3 + k, oy + ey + dy - k);
+    fonte(doc, 'normal', compacta ? 7.5 : 8, [184, 50, 40]); doc.text(compacta ? 'Errado' : 'Errado (não marque com X)', ox + ex + 7.5, oy + ey + dy + 1.2);
+    var nx = compacta ? 132 : 112, ny = compacta ? 58 : 112;
+    fonte(doc, 'normal', 8, [68, 74, 85]); doc.text('Nota:', ox + nx, oy + ny);
+    cor(doc, 'Draw', LINHA); doc.setLineWidth(0.25); doc.line(ox + nx + 9, oy + ny + 0.5, ox + nx + (compacta ? 38 : 42), oy + ny + 0.5);
   }
 
   // ---------------- provas ----------------
@@ -83,30 +98,29 @@
     doc.addImage(cab.dataUrl, cab.tipo || 'PNG', M + (CW - w) / 2, y, w, h, undefined, 'FAST');
     return y + h + 4;
   }
-  function blocoQuestao(doc, num, q, perm, valor, mostrarTema) {
-    // devolve {altura, desenhar(y)}
-    var tamE = 10.5, tamA = 10, ind = 8;
+  function blocoQuestao(doc, num, q, perm, valor, mostrarTema, larg) {
+    var tamE = 9.5, tamA = 9, ind = 6.5;
     fonte(doc, 'normal', tamE);
-    var enun = doc.splitTextToSize(san(q.enunciado), CW);
+    var enun = doc.splitTextToSize(san(q.enunciado), larg);
     fonte(doc, 'normal', tamA);
-    var alts = perm.map(function (pi, k) { return doc.splitTextToSize(san(q.alts[pi]), CW - ind); });
-    var hT = 6, hE = alturaLinhas(enun.length, tamE) + 1.5, hA = 0;
-    alts.forEach(function (a) { hA += alturaLinhas(a.length, tamA) + 1.2; });
-    var total = hT + hE + hA + 4;
+    var alts = perm.map(function (pi) { return doc.splitTextToSize(san(q.alts[pi]), larg - ind); });
+    var hT = 5.2, hE = alturaLinhas(enun.length, tamE, 1.25) + 1.2, hA = 0;
+    alts.forEach(function (a) { hA += alturaLinhas(a.length, tamA, 1.22) + 0.9; });
+    var total = hT + hE + hA + 3.2;
     return {
       altura: total,
-      desenhar: function (y) {
-        fonte(doc, 'bold', 10.5, NAVY); doc.text('Questão ' + num, M, y + 3.6);
-        var tx = M + doc.getTextWidth('Questão ' + num) + 3;
-        fonte(doc, 'normal', 8.5, CINZA);
-        var info = (valor ? '(' + fmtNum(valor) + ' ponto' + (valor === 1 ? '' : 's') + ')' : '') + (mostrarTema && q.tema ? '   ' + san(q.tema) : '');
-        doc.text(doc.splitTextToSize(info, CW - (tx - M))[0] || '', tx, y + 3.6);
+      desenhar: function (x, y) {
+        fonte(doc, 'bold', 9.5, NAVY); doc.text('Questão ' + num, x, y + 3.3);
+        var tx = x + doc.getTextWidth('Questão ' + num) + 2.5;
+        fonte(doc, 'normal', 7.8, CINZA);
+        var info = (valor ? '(' + fmtNum(valor) + ' pt)' : '') + (mostrarTema && q.tema ? '  ' + san(q.tema) : '');
+        doc.text(doc.splitTextToSize(info, larg - (tx - x))[0] || '', tx, y + 3.3);
         y += hT;
-        fonte(doc, 'normal', tamE); doc.text(enun, M, y + 3.4, { lineHeightFactor: 1.3 }); y += hE;
+        fonte(doc, 'normal', tamE); doc.text(enun, x, y + 3.1, { lineHeightFactor: 1.25 }); y += hE;
         alts.forEach(function (a, k) {
-          fonte(doc, 'bold', tamA, NAVY); doc.text('(' + 'ABCDE'[k] + ')', M + 1, y + 3.3);
-          fonte(doc, 'normal', tamA); doc.text(a, M + ind, y + 3.3, { lineHeightFactor: 1.3 });
-          y += alturaLinhas(a.length, tamA) + 1.2;
+          fonte(doc, 'bold', tamA, NAVY); doc.text('ABCDE'[k] + ')', x + 0.5, y + 3);
+          fonte(doc, 'normal', tamA); doc.text(a, x + ind, y + 3, { lineHeightFactor: 1.22 });
+          y += alturaLinhas(a.length, tamA, 1.22) + 0.9;
         });
       }
     };
@@ -118,48 +132,79 @@
     cor(doc, 'Draw', LINHA); doc.setLineWidth(0.2); doc.line(M, PH - 11.5, PW - M, PH - 11.5);
   }
 
-  function gerarProvas(av, L, opcoes) {
+  function gerarProvas(av, Ls, opcoes) {
     opcoes = opcoes || {};
+    var L = Ls[av.gerado.layout || 'OMR2'] || Ls.OMR2;
     var doc = new root.jspdf.jsPDF({ unit: 'mm', format: 'a4', compress: true });
     var banco = {}; av.banco.forEach(function (q) { banco[q.id] = q; });
-    var alunos = av.gerado.alunos, primeira = true;
+    var primeira = true, GAP = 6, COL = (CW - GAP) / 2, FIM = PH - 15;
     var titulo = [av.disciplina, av.titulo].filter(Boolean).join(' - ');
-    alunos.forEach(function (al) {
+    // folha compacta no rodapé da última página
+    var oyFolha = PH - 14 - L.marcador / 2 - L.altura, topoFolha = oyFolha - L.marcador / 2 - 9;
+    av.gerado.alunos.forEach(function (al) {
       if (!primeira) doc.addPage(); primeira = false;
       var pIni = doc.getNumberOfPages(), n = al.questoes.length;
       var valor = (+av.valor_total || 10) / n;
       var y = cabecalhoImg(doc, av.cabecalho, M);
-      // faixa do aluno
       cor(doc, 'Fill', [241, 244, 250]); cor(doc, 'Draw', LINHA); doc.setLineWidth(0.25);
-      doc.roundedRect(M, y, CW, 17, 2, 2, 'FD');
-      fonte(doc, 'bold', 10.5); doc.text(doc.splitTextToSize(san('Aluno(a): ' + al.nome), CW - 60)[0], M + 4, y + 6.5);
-      fonte(doc, 'normal', 9.5);
-      doc.text(san('RA: ' + (al.ra || '-')), M + CW - 4, y + 6.5, { align: 'right' });
-      doc.text(san([av.curso, titulo].filter(Boolean).join('  ·  ')).slice(0, 110), M + 4, y + 12.8);
-      doc.text(san('Prova ' + al.codigo + (av.data ? '  ·  ' + fmtData(av.data) : '')), M + CW - 4, y + 12.8, { align: 'right' });
-      y += 21;
-      fonte(doc, 'normal', 8.8, CINZA);
+      doc.roundedRect(M, y, CW, 15, 2, 2, 'FD');
+      fonte(doc, 'bold', 10); doc.text(doc.splitTextToSize(san('Aluno(a): ' + al.nome), CW - 60)[0], M + 4, y + 6);
+      fonte(doc, 'normal', 9);
+      doc.text(san('RA: ' + (al.ra || '-')), M + CW - 4, y + 6, { align: 'right' });
+      doc.text(san([av.curso, titulo].filter(Boolean).join('  ·  ')).slice(0, 110), M + 4, y + 11.5);
+      doc.text(san('Prova ' + al.codigo + (av.data ? '  ·  ' + fmtData(av.data) : '')), M + CW - 4, y + 11.5, { align: 'right' });
+      y += 18;
+      fonte(doc, 'normal', 8.3, CINZA);
       var instr = doc.splitTextToSize(san(n + ' questões objetivas, valor total ' + fmtNum(+av.valor_total || 10) + ' pontos (' + fmtNum(valor) +
-        ' cada). Cada questão tem uma única alternativa correta. Marque as respostas na FOLHA DE RESPOSTAS, na última página: somente ela será corrigida.'), CW);
-      doc.text(instr, M, y + 2.5, { lineHeightFactor: 1.3 }); y += alturaLinhas(instr.length, 8.8) + 4;
-      al.questoes.forEach(function (qq, k) {
-        var q = banco[qq.qid];
-        var b = blocoQuestao(doc, k + 1, q, qq.perm, valor, opcoes.mostrarTema);
-        if (y + b.altura > PH - 16) { doc.addPage(); y = M + 2; }
-        b.desenhar(y); y += b.altura;
+        ' cada), com uma única alternativa correta. Marque as respostas na FOLHA DE RESPOSTAS, no final da prova: somente ela será corrigida.'), CW);
+      doc.text(instr, M, y + 2.4, { lineHeightFactor: 1.25 }); y += alturaLinhas(instr.length, 8.3, 1.25) + 3;
+      // fluxo em duas colunas
+      var blocos = al.questoes.map(function (qq, k) { return blocoQuestao(doc, k + 1, banco[qq.qid], qq.perm, valor, opcoes.mostrarTema, COL); });
+      // simula para saber em que página a folha cabe
+      function distribuir() {
+        var pos = [], pag = 0, col = 0, yy = y, topo = y;
+        for (var k = 0; k < blocos.length; k++) {
+          var h = blocos[k].altura;
+          for (;;) {
+            var lim = FIM;
+            if (yy + h <= lim) { pos.push({ pag: pag, col: col, y: yy }); yy += h; break; }
+            if (col === 0) { col = 1; yy = topo; } else { pag++; col = 0; topo = M + 2; yy = topo; }
+          }
+        }
+        return pos;
+      }
+      var pos = distribuir(), ultima = pos.length ? pos[pos.length - 1].pag : 0;
+      // a folha vai no rodapé da última página; se as questões da última página invadem a área da folha, redistribui com limite
+      function cabeFolha(p, pg) { return p.every(function (o, k) { return o.pag < pg || o.y + blocos[k].altura <= topoFolha; }); }
+      var pgFolha = ultima;
+      if (!cabeFolha(pos, ultima)) {
+        // tenta empurrar as questões da última página para respeitar o limite da folha
+        var pos2 = [], pag = 0, col = 0, topo = y, yy = y;
+        for (var k = 0; k < blocos.length; k++) {
+          var h = blocos[k].altura;
+          for (;;) {
+            var lim = (pag >= ultima) ? topoFolha : FIM;
+            if (yy + h <= lim) { pos2.push({ pag: pag, col: col, y: yy }); yy += h; break; }
+            if (col === 0) { col = 1; yy = topo; } else { pag++; col = 0; topo = M + 2; yy = topo; }
+          }
+        }
+        pos = pos2; pgFolha = pos[pos.length - 1].pag;
+        if (!cabeFolha(pos, pgFolha)) pgFolha++;
+      }
+      pos.forEach(function (o, k) {
+        while (doc.getNumberOfPages() < pIni + o.pag) doc.addPage();
+        doc.setPage(pIni + o.pag);
+        blocos[k].desenhar(M + o.col * (COL + GAP), o.y);
       });
-      // folha de respostas
-      doc.addPage();
-      fonte(doc, 'bold', 13, NAVY); doc.text(san(titulo || 'Prova'), M, M + 6);
-      fonte(doc, 'normal', 9, CINZA);
-      doc.text(san('Entregue esta folha ao final da prova. As respostas marcadas fora dela não serão consideradas.'), M, M + 12);
-      folha(doc, L, (PW - L.largura) / 2, 45, al, av.id, n, [av.curso, titulo].filter(Boolean).join(' - '));
+      while (doc.getNumberOfPages() < pIni + pgFolha) doc.addPage();
+      doc.setPage(pIni + pgFolha);
+      cor(doc, 'Draw', CORAL); doc.setLineWidth(0.5); doc.line(M, topoFolha - 1.5, M + CW, topoFolha - 1.5);
+      fonte(doc, 'normal', 7.8, CINZA);
+      doc.text(san('Marque suas respostas na folha abaixo. Somente as marcações feitas nela serão consideradas.'), M, topoFolha + 3);
+      folha(doc, L, (PW - L.largura) / 2, oyFolha, al, av.id, n, [av.curso, titulo].filter(Boolean).join(' - '));
       if (av.config.frenteVerso && (doc.getNumberOfPages() - pIni + 1) % 2 === 1) doc.addPage();
       var pFim = doc.getNumberOfPages(), tot = pFim - pIni + 1;
-      for (var p = pIni; p <= pFim; p++) {
-        doc.setPage(p);
-        rodape(doc, (al.nome + ' · ' + al.codigo), p - pIni + 1, tot);
-      }
+      for (var p = pIni; p <= pFim; p++) { doc.setPage(p); rodape(doc, (al.nome + ' · ' + al.codigo), p - pIni + 1, tot); }
       doc.setPage(pFim);
     });
     return doc;

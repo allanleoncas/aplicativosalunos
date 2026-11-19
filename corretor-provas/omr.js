@@ -121,7 +121,7 @@
         if (qy > 0 && mask[q - w] && !vis[q - w]) { vis[q - w] = 1; fila[fim++] = q - w; }
         if (qy < h - 1 && mask[q + w] && !vis[q + w]) { vis[q + w] = 1; fila[fim++] = q + w; }
       }
-      if (area < alvo * 0.18 || area > alvo * 4) continue;
+      if (area < alvo * 0.25 || area > alvo * 4) continue;
       // forma independente de rotação: momento de inércia normalizado e distância máxima ao centro
       var cx = sx / area, cy = sy / area, mom = 0, dmax = 0;
       for (var t = 0; t < fim; t++) {
@@ -162,20 +162,30 @@
     return null;
   }
 
-  function lerTexto(t, versao) {
+  function lerTexto(t, layouts) {
     var p = (t || '').split('|');
-    if (p.length < 4 || p[0] !== versao) return null;
-    return { texto: t, prova: p[1], codigo: p[2], n: parseInt(p[3], 10) };
+    if (p.length < 4 || !layouts[p[0]]) return null;
+    return { texto: t, versao: p[0], prova: p[1], codigo: p[2], n: parseInt(p[3], 10) };
+  }
+  // posição (mm) da bolha j da questão q; aceita bolhas em blocos lado a lado
+  function posBolha(B, q, j) {
+    if (B.blocos) {
+      var b = B.blocos[Math.floor(q / B.porBloco)], r = q % B.porBloco;
+      return [b.x0 + j * B.dx, b.y0 + r * B.dy];
+    }
+    return [B.x0 + j * B.dx, B.y0 + q * B.dy];
   }
 
   /* img: {data (RGBA), width, height}. Retorna {ok, erro?, qr, respostas, debug} */
-  function analisar(img, L, op) {
+  function analisar(img, Ls, op) {
     op = op || {};
+    var layouts = Ls.versao ? (function () { var o = {}; o[Ls.versao] = Ls; return o; })() : Ls;
     var w = img.width, h = img.height;
     var code = lerQR(img, op);
     if (!code) return { ok: false, erro: 'qr' };
-    var qr = lerTexto(code.data, L.versao);
+    var qr = lerTexto(code.data, layouts);
     if (!qr) return { ok: false, erro: 'qr-formato', texto: code.data };
+    var L = layouts[qr.versao];
     var g = cinza(img);
     var Q = L.qr, loc = code.location;
     var H0 = homografia(
@@ -208,9 +218,9 @@
     var B = L.bolhas, n = Math.min(qr.n, B.max_questoes), r = B.raio, resp = [], pontos = [];
     var lim = op.limiar || 0.40, limFraco = op.limiarFraco || 0.22;
     for (var q = 0; q < n; q++) {
-      var yy = B.y0 + q * B.dy, scores = [];
+      var scores = [];
       for (var j = 0; j < B.letras.length; j++) {
-        var xx = B.x0 + j * B.dx;
+        var pb = posBolha(B, q, j), xx = pb[0], yy = pb[1];
         // branco local: anel entre a borda da bolha e a vizinha
         var anel = [];
         for (var a = 0; a < 24; a++) {
@@ -246,6 +256,6 @@
              debug: { cantos: achados.map(function (a) { return [a.x, a.y]; }), bolhas: pontos, escala: esc } };
   }
 
-  var api = { analisar: analisar, homografia: homografia, aplicar: aplicar };
+  var api = { posBolha: posBolha, analisar: analisar, homografia: homografia, aplicar: aplicar };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.OMR = api;
 })(this);

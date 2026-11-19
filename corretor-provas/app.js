@@ -1,7 +1,12 @@
 /* Corretor de Provas – lógica do aplicativo */
 'use strict';
-const LAYOUT = {"versao":"OMR1","largura":170,"altura":130,"marcador":9,"qr":{"x":128,"y":8,"lado":32},
-  "bolhas":{"x0":32,"dx":13,"y0":52,"dy":7.5,"raio":2.9,"letras":"ABCDE","max_questoes":10}};
+const LAYOUTS = {
+  OMR1: {"versao":"OMR1","largura":170,"altura":130,"marcador":9,"qr":{"x":128,"y":8,"lado":32},
+    "bolhas":{"x0":32,"dx":13,"y0":52,"dy":7.5,"raio":2.9,"letras":"ABCDE","max_questoes":10}},
+  OMR2: {"versao":"OMR2","largura":180,"altura":64,"marcador":7,"qr":{"x":149,"y":9,"lado":25},
+    "bolhas":{"blocos":[{"x0":22,"y0":33},{"x0":84,"y0":33}],"porBloco":5,"dx":9,"dy":6.5,"raio":2.5,"letras":"ABCDE","max_questoes":10}}
+};
+const MAXQ = 10;
 const LETRAS = 'ABCDE';
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -49,14 +54,14 @@ function deGabaritoJSON(j){
   if(!j || !j.id || !Array.isArray(j.alunos) || !j.alunos.length) throw new Error('Arquivo sem lista de alunos.');
   j.alunos.forEach(a => {
     if(!a.codigo || !a.nome || !/^[A-E]+$/.test(a.gabarito || '')) throw new Error('Aluno inválido no arquivo: ' + (a.nome || a.codigo || '?'));
-    if(a.gabarito.length > LAYOUT.bolhas.max_questoes) throw new Error('Máximo de ' + LAYOUT.bolhas.max_questoes + ' questões por folha.');
+    if(a.gabarito.length > MAXQ) throw new Error('Máximo de ' + MAXQ + ' questões por folha.');
   });
   if(j.formato === 'corretor-provas-avaliacao') return j.avaliacao;
   return {id: j.id, curso: j.curso || '', disciplina: j.disciplina || '', titulo: j.prova || j.titulo || j.id, data: j.data || '',
     valor_total: j.valor_total || (j.valor_questao ? j.valor_questao * j.alunos[0].gabarito.length : 10),
     config: {n: j.alunos[0].gabarito.length, embaralharQuestoes: true, frenteVerso: true, semente: 1}, cabecalho: null, banco: [],
     alunos: j.alunos.map(a => ({nome: a.nome, ra: a.ra || ''})),
-    gerado: {quando: new Date().toISOString(), importado: true, alunos: j.alunos.map(a => ({codigo: a.codigo, nome: a.nome, ra: a.ra || '', gabarito: a.gabarito, questoes: []}))},
+    gerado: {quando: new Date().toISOString(), importado: true, layout: 'OMR1', alunos: j.alunos.map(a => ({codigo: a.codigo, nome: a.nome, ra: a.ra || '', gabarito: a.gabarito, questoes: []}))},
     resultados: {}};
 }
 
@@ -67,7 +72,7 @@ function embaralhar(arr, r){ const a = arr.slice(); for(let i = a.length - 1; i 
 function combinacoes(n, k){ let c = 1; for(let i = 1; i <= k; i++){ c = c * (n - k + i) / i; if(c > 1e9) return c; } return Math.round(c); }
 
 function sortear(a){
-  const banco = a.banco, n = Math.min(+a.config.n, banco.length, LAYOUT.bolhas.max_questoes);
+  const banco = a.banco, n = Math.min(+a.config.n, banco.length, MAXQ);
   const r = rng(hash(a.id + ':' + a.config.semente));
   const temas = [...new Set(banco.map(q => q.tema || 'Geral'))];
   const porTema = {}; temas.forEach(t => porTema[t] = banco.filter(q => (q.tema || 'Geral') === t));
@@ -102,7 +107,7 @@ function sortear(a){
     const pad = a.alunos.length >= 100 ? 3 : 2;
     saida.push({codigo: 'P' + String(idx + 1).padStart(pad, '0'), nome: al.nome, ra: al.ra || '', gabarito, questoes});
   });
-  return {quando: new Date().toISOString(), alunos: saida, unicas: assin.size};
+  return {quando: new Date().toISOString(), layout: 'OMR2', alunos: saida, unicas: assin.size};
 }
 
 // =================== importações ===================

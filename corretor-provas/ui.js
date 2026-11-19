@@ -58,7 +58,7 @@ function voltarLista(){ editando = false; render(); }
 function renderEditor(){
   const a = av(), g = alunosGerados(a), nRes = Object.keys(a.resultados || {}).length;
   const temas = {}; a.banco.forEach(q => temas[q.tema] = (temas[q.tema] || 0) + 1);
-  const n = Math.min(+a.config.n, LAYOUT.bolhas.max_questoes);
+  const n = Math.min(+a.config.n, MAXQ);
   const comb = a.banco.length ? combinacoes(a.banco.length, Math.min(n, a.banco.length)) : 0;
   const imp = a.gerado && a.gerado.importado;
   let h = '<button class="link" onclick="voltarLista()">‹ Avaliações</button>';
@@ -188,7 +188,7 @@ async function comProgresso(msg, fn){
 function baixarProvas(){
   comProgresso('Gerando as provas…', async () => {
     await pdfLibs(); const a = garantirGerado();
-    const doc = PDFGEN.gerarProvas(a, LAYOUT, {mostrarTema: a.config.mostrarTema});
+    const doc = PDFGEN.gerarProvas(a, LAYOUTS, {mostrarTema: a.config.mostrarTema});
     baixarBlob(doc.output('blob'), 'provas_' + nomeArq(a.disciplina + '_' + a.titulo) + '.pdf'); render();
   });
 }
@@ -354,7 +354,7 @@ function loop(){
   const v = $('#video');
   if(v.readyState < 2){ setTimeout(loop, 150); return; }
   const fw = v.videoWidth, fh = v.videoHeight, {img} = imagemDeFonte(v, fw, fh, 1280);
-  let r; try { r = OMR.analisar(img, LAYOUT, {escalasQR: [1, 0.6]}); } catch(e){ r = {ok: false, erro: 'qr'}; }
+  let r; try { r = OMR.analisar(img, LAYOUTS, {escalasQR: [1, 0.6]}); } catch(e){ r = {ok: false, erro: 'qr'}; }
   const k = img.width / fw;
   if(r.ok) r.debug.cantos = r.debug.cantos.map(c => [c[0] / k, c[1] / k]);
   desenharOverlay(r, fw, fh);
@@ -367,7 +367,7 @@ function loop(){
     const snap = imagemDeFonte(v, fw, fh, 1000).canvas;
     if(navigator.vibrate) navigator.vibrate(60);
     fecharCamera();
-    const r2 = OMR.analisar(snap.getContext('2d').getImageData(0, 0, snap.width, snap.height), LAYOUT, {escalasQR: [1, 0.6, 0.4]});
+    const r2 = OMR.analisar(snap.getContext('2d').getImageData(0, 0, snap.width, snap.height), LAYOUTS, {escalasQR: [1, 0.6, 0.4]});
     const it2 = r2.ok ? interpretar(r2) : it;
     mostrarResultado(Object.assign({}, it2.erro ? it : it2, {snap, debug: r2.ok ? r2.debug : null}));
     return;
@@ -381,7 +381,7 @@ function lerFoto(inp){
     URL.revokeObjectURL(url); let melhor = null;
     for(const max of [1600, 2200, 1100]){
       const {canvas, img} = imagemDeFonte(im, im.naturalWidth, im.naturalHeight, max);
-      const r = OMR.analisar(img, LAYOUT, {escalasQR: [1, 0.6, 0.4], inverter: true}), it = interpretar(r);
+      const r = OMR.analisar(img, LAYOUTS, {escalasQR: [1, 0.6, 0.4], inverter: true}), it = interpretar(r);
       if(!it.erro){ mostrarResultado(Object.assign(it, {snap: canvas, debug: r.debug})); return; }
       melhor = melhor || it.erro;
     }

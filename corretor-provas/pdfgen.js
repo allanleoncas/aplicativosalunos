@@ -146,14 +146,29 @@
       var pIni = doc.getNumberOfPages(), n = al.questoes.length;
       var valor = (+av.valor_total || 10) / n;
       var y = cabecalhoImg(doc, av.cabecalho, M);
+      // faixa de identificação
+      var HB = 30;
       cor(doc, 'Fill', [241, 244, 250]); cor(doc, 'Draw', LINHA); doc.setLineWidth(0.25);
-      doc.roundedRect(M, y, CW, 15, 2, 2, 'FD');
-      fonte(doc, 'bold', 10); doc.text(doc.splitTextToSize(san('Aluno(a): ' + al.nome), CW - 60)[0], M + 4, y + 6);
-      fonte(doc, 'normal', 9);
-      doc.text(san('RA: ' + (al.ra || '-')), M + CW - 4, y + 6, { align: 'right' });
-      doc.text(san([av.curso, titulo].filter(Boolean).join('  ·  ')).slice(0, 110), M + 4, y + 11.5);
-      doc.text(san('Prova ' + al.codigo + (av.data ? '  ·  ' + fmtData(av.data) : '')), M + CW - 4, y + 11.5, { align: 'right' });
-      y += 18;
+      doc.roundedRect(M, y, CW, HB, 2, 2, 'FD');
+      var xL = M + 4, xR = M + CW - 4;
+      fonte(doc, 'bold', 10.5); doc.text(doc.splitTextToSize(san('Aluno(a): ' + al.nome), CW - 50)[0], xL, y + 6.2);
+      fonte(doc, 'normal', 9.5); doc.text(san('RA: ' + (al.ra || '-')), xR, y + 6.2, { align: 'right' });
+      function rot(r, v, x, yy, dir) {
+        fonte(doc, 'bold', 8.8); var w = doc.getTextWidth(r + ' ');
+        if (dir) { fonte(doc, 'normal', 8.8); var wv = doc.getTextWidth(v); fonte(doc, 'bold', 8.8); doc.text(r, x - wv - 1.2, yy, { align: 'right' }); fonte(doc, 'normal', 8.8); doc.text(v, x, yy, { align: 'right' }); return; }
+        doc.text(r, x, yy); fonte(doc, 'normal', 8.8); doc.text(doc.splitTextToSize(v, 118 - w)[0] || '', x + w, yy);
+      }
+      rot('Curso:', san(av.curso || '-'), xL, y + 12.2); rot('Prova:', al.codigo, xR, y + 12.2, true);
+      rot('Disciplina:', san(av.disciplina || '-'), xL, y + 16.8); rot('Data:', av.data ? fmtData(av.data) : '____/____/______', xR, y + 16.8, true);
+      rot('Avaliação:', san([av.titulo, av.chamada].filter(Boolean).join(' - ') || '-'), xL, y + 21.4);
+      // valor em destaque
+      fonte(doc, 'bold', 10.5, CORAL); doc.text(san('Valor: ' + fmtNum(+av.valor_total || 10) + ' pontos'), xR, y + 21.6, { align: 'right' });
+      // assinatura
+      fonte(doc, 'bold', 8.8); doc.text('Assinatura do(a) aluno(a):', xL, y + 27);
+      cor(doc, 'Draw', [120, 126, 140]); doc.setLineWidth(0.3); doc.line(xL + 41, y + 27.4, xL + 132, y + 27.4);
+      fonte(doc, 'bold', 8.8); doc.text('Nota:', xR - 26, y + 27);
+      doc.line(xR - 16, y + 27.4, xR, y + 27.4);
+      y += HB + 3;
       fonte(doc, 'normal', 8.3, CINZA);
       var instr = doc.splitTextToSize(san(n + ' questões objetivas, valor total ' + fmtNum(+av.valor_total || 10) + ' pontos (' + fmtNum(valor) +
         ' cada), com uma única alternativa correta. Marque as respostas na FOLHA DE RESPOSTAS, no final da prova: somente ela será corrigida.'), CW);
@@ -258,7 +273,7 @@
     var doc = new root.jspdf.jsPDF({ unit: 'mm', format: 'a4', compress: true });
     var nmax = Math.max.apply(null, av.gerado.alunos.map(function (a) { return a.gabarito.length; }));
     var y = titulo(doc, 'Gabarito do professor', [av.disciplina, av.titulo].filter(Boolean).join(' - ') || 'Avaliação',
-      [av.curso, av.data ? fmtData(av.data) : '', av.gerado.alunos.length + ' provas'].filter(Boolean).join('  ·  '));
+      [av.curso, av.chamada, av.data ? fmtData(av.data) : '', av.gerado.alunos.length + ' provas'].filter(Boolean).join('  ·  '));
     var wq = Math.min(9.5, (CW - 12 - 64 - 14) / nmax), cols = [{ t: 'Nº', w: 12, al: 'c' }, { t: 'Aluno(a)', w: CW - 12 - 14 - wq * nmax }, { t: 'Prova', w: 14, al: 'c' }];
     for (var i = 0; i < nmax; i++) cols.push({ t: String(i + 1), w: wq, al: 'c' });
     var linhas = av.gerado.alunos.map(function (a, k) { return [String(k + 1), a.nome, a.codigo].concat(a.gabarito.split('')); });
@@ -276,7 +291,7 @@
     var notas = alunos.filter(function (a) { return res[a.codigo]; }).map(function (a) { return res[a.codigo].nota; });
     var media = notas.length ? notas.reduce(function (s, x) { return s + x; }, 0) / notas.length : null;
     var y = titulo(doc, 'Relatório de notas', [av.disciplina, av.titulo].filter(Boolean).join(' - ') || 'Avaliação',
-      [av.curso, av.data ? 'Aplicada em ' + fmtData(av.data) : '', 'Emitido em ' + new Date().toLocaleDateString('pt-BR')].filter(Boolean).join('  ·  '));
+      [av.curso, av.chamada, av.data ? 'Aplicada em ' + fmtData(av.data) : '', 'Emitido em ' + new Date().toLocaleDateString('pt-BR')].filter(Boolean).join('  ·  '));
     var kp = [
       ['Provas corrigidas', notas.length + ' de ' + alunos.length],
       ['Média da turma', media == null ? '-' : fmtNum(media)],

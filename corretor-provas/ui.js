@@ -66,8 +66,10 @@ function renderEditor(){
   h += '<div class="card"><div class="passo">1</div><h2>Dados da avaliação</h2>' +
     campo('Curso', 'curso', a.curso, 'Ex.: Direito') + campo('Disciplina', 'disciplina', a.disciplina, 'Ex.: Economia') +
     campo('Título', 'titulo', a.titulo, 'Ex.: Prova da Unidade 6') +
+    '<label class="campo"><span>Chamada</span><input type="text" list="chamadas" value="' + esc(a.chamada || '') + '" placeholder="Ex.: Primeira chamada" onchange="setAv(\'chamada\', this.value.trim())"></label>' +
+    '<datalist id="chamadas"><option>Primeira chamada</option><option>Segunda chamada</option><option>Exame</option><option>Recuperação</option></datalist>' +
     '<div class="row"><label class="campo"><span>Data</span><input type="date" value="' + esc(a.data) + '" onchange="setAv(\'data\', this.value)"></label>' +
-    '<label class="campo"><span>Valor total</span><input type="number" min="0" step="0.5" value="' + esc(a.valor_total) + '" onchange="setAv(\'valor_total\', +this.value)"></label></div>' +
+    '<label class="campo"><span>Valor da prova (pontos)</span><input type="number" min="0" step="0.5" value="' + esc(a.valor_total) + '" onchange="setAv(\'valor_total\', +this.value)"></label></div>' +
     '<label class="campo"><span>Questões por prova</span><select onchange="setCfg(\'n\', +this.value)">' +
     Array.from({length: 10}, (_, i) => '<option' + (i + 1 === n ? ' selected' : '') + '>' + (i + 1) + '</option>').join('') + '</select></label>' +
     check('embaralharQuestoes', 'Embaralhar a ordem das questões', a.config.embaralharQuestoes) +

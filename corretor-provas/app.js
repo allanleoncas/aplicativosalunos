@@ -45,7 +45,7 @@ function novoId(){
   return 'A' + s;
 }
 function novaAvaliacao(){
-  const a = {id: novoId(), curso: '', disciplina: '', titulo: 'Avaliação', data: '', valor_total: 10,
+  const a = {id: novoId(), curso: '', disciplina: '', titulo: 'Avaliação', chamada: '', data: '', valor_total: 10,
     config: {n: 8, embaralharQuestoes: true, frenteVerso: true, mostrarTema: false, semente: 1},
     cabecalho: null, banco: [], alunos: [], gerado: null, resultados: {}, criada: new Date().toISOString()};
   db.avaliacoes[a.id] = a; db.ativa = a.id; salvarDB(); return a;

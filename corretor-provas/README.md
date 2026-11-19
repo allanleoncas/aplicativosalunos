@@ -1,34 +1,26 @@
 # Corretor de Provas
 
-Correção de provas objetivas pelo celular. O app lê a folha de respostas com a câmera (QR code + 4 marcadores + bolhas A–E), compara com o gabarito de cada aluno e exporta as notas da turma em planilha.
+Aplicativo para professores: gera provas objetivas individuais em PDF a partir de um banco de questões, corrige pela câmera do celular e emite o relatório de notas. Serve para qualquer curso e disciplina.
 
 **Abrir:** https://allanleoncas.github.io/aplicativosalunos/corretor-provas/
 
-## Como funciona
-1. Cada prova sai com uma folha de respostas própria, com um QR code que identifica o aluno.
-2. No app, carregue o arquivo de gabaritos da turma (`.json`), gerado junto com as provas.
-3. Aponte a câmera para a folha. O app lê as marcações, mostra a nota e destaca em amarelo as questões em branco, com dupla marcação ou com marcação fraca, para conferência.
-4. Exporte a planilha (`.csv`, abre no Excel) na aba **Turma**.
+## Fluxo
+1. **Avaliações** – crie uma avaliação (curso, disciplina, título, data, valor, questões por prova).
+2. **Cabeçalho** – envie o cabeçalho da instituição como imagem ou PDF (as margens brancas são recortadas).
+3. **Banco de questões** – baixe a planilha modelo, preencha (Tema, Nível, Enunciado, A–E, Correta, Comentário) e envie.
+4. **Alunos** – envie uma planilha (Nome, RA) ou cole a lista.
+5. **Provas** – o app sorteia uma prova diferente para cada aluno, cobrindo todos os temas, com questões e alternativas embaralhadas, e gera um PDF único (com folha de respostas no final de cada prova e páginas pares para frente e verso) e o gabarito do professor.
+6. **Corrigir** – aponte a câmera para a folha de respostas; o app lê o QR code, os 4 marcadores e as bolhas, e calcula a nota. Questões em branco, com dupla marcação ou marcação fraca ficam em amarelo para conferência.
+7. **Relatório** – PDF com as notas da turma (média, maior, menor, abaixo da média) e exportação em planilha CSV.
 
-Os gabaritos e as notas ficam só no navegador do aparelho (localStorage). Nada é enviado para servidor.
+Tudo fica no navegador do aparelho (IndexedDB). Use **Exportar backup** para guardar uma cópia ou levar a avaliação para outro aparelho.
 
 ## Arquivos
-- `index.html` – o aplicativo.
-- `omr.js` – leitura óptica: QR code, localização dos marcadores, homografia e leitura das bolhas.
-- `jsQR.js` – biblioteca de leitura de QR code ([jsQR](https://github.com/cozmo/jsQR), Apache-2.0).
-- `kit_teste.pdf` – folhas de teste para a prova de demonstração.
-- `gerador/` – `folha.py` desenha a folha de respostas a partir de `layout.json` (o mesmo layout que o app usa); `demo.json` é o exemplo de arquivo de gabaritos.
+- `index.html`, `ui.js`, `app.js` – interface, armazenamento, importações e sorteio das provas.
+- `pdfgen.js` – provas, folha de respostas, gabarito e relatório em PDF.
+- `omr.js` – leitura óptica da folha (QR code, marcadores, homografia, bolhas).
+- `lib/` – bibliotecas: jsQR (Apache-2.0), jsPDF (MIT), qrcode-generator (MIT), SheetJS (Apache-2.0), pdf.js (Apache-2.0).
+- `kit_teste.pdf` – folhas da avaliação de demonstração.
+- `gerador/` – `folha.py` e `layout.json` (o layout da folha, o mesmo usado pelo app).
 
-## Formato do arquivo de gabaritos
-```json
-{
-  "formato": "corretor-provas-1",
-  "id": "DIR2611",
-  "prova": "Economia – Direito – Unidades 06 a 08",
-  "valor_total": 10,
-  "alunos": [
-    {"codigo": "P01", "nome": "Nome do aluno", "ra": "12345", "gabarito": "CAEBDACE"}
-  ]
-}
-```
-O QR code da folha contém `OMR1|<id da prova>|<código do aluno>|<nº de questões>` e nunca as respostas.
+O QR code da folha contém `OMR1|<id da avaliação>|<código do aluno>|<nº de questões>` e nunca as respostas.

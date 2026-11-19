@@ -188,7 +188,7 @@ function renderEditor(){
   if(imp) h += '<p class="muted">Avaliação importada de um arquivo de gabaritos: ' + g.length + ' provas prontas para correção.</p>';
   else if(!pronto) h += '<p class="muted">Complete o banco de questões e a lista de alunos para gerar as provas.</p>';
   else {
-    h += '<p>' + a.alunos.length + ' provas com ' + Math.min(n, a.banco.length) + ' questões cada, sorteadas de ' + a.banco.length + ' (' +
+    h += '<p>' + a.alunos.length + ' provas (+ 1 extra em branco, para aluno fora da lista) com ' + Math.min(n, a.banco.length) + ' questões cada, sorteadas de ' + a.banco.length + ' (' +
          (comb >= a.alunos.length ? 'todas as combinações diferentes' : 'só há ' + comb + ' combinações possíveis: algumas provas vão repetir questões, mas com alternativas embaralhadas') + ').</p>' +
          (n > a.banco.length ? '<div class="alerta">O banco tem menos questões que o número por prova.</div>' : '');
     h += '<div class="stack" style="margin-top:10px"><button class="btn acc" onclick="baixarProvas()">' + (g.length ? 'Baixar provas (PDF)' : 'Gerar provas (PDF)') + '</button>';
@@ -423,7 +423,7 @@ function interpretar(r){
     if(db.avaliacoes[r.qr.prova] && alunosGerados(db.avaliacoes[r.qr.prova]).length){ db.ativa = r.qr.prova; salvarDB(); a = av(); toast('Avaliação trocada: ' + (a.titulo || a.id)); }
     else return {erro: 'Esta folha é de uma avaliação que não está neste aparelho (' + r.qr.prova + ').'};
   }
-  const aluno = alunosGerados(a).find(x => x.codigo === r.qr.codigo);
+  const aluno = todosGerados(a).find(x => x.codigo === r.qr.codigo);
   if(!aluno) return {erro: 'Prova ' + r.qr.codigo + ' não está nesta avaliação.'};
   const n = aluno.gabarito.length;
   return {aluno, marcadas: r.respostas.slice(0, n).map(x => x.letra), status: r.respostas.slice(0, n).map(x => x.status), debug: r.debug};
@@ -513,7 +513,7 @@ function mostrarResultado(it){
       (m === g ? '<span class="pill ok">certa</span>' : '<span class="pill bad">errada</span>') + '</td></tr>';
   }
   $('#resConteudo').innerHTML =
-    '<div class="card"><div class="lbl">' + esc(al.codigo) + ' · RA ' + esc(al.ra || '–') + ' · ' + esc([a.disciplina, a.titulo].filter(Boolean).join(' · ')) + '</div><h2 style="font-size:20px">' + esc(al.nome) + '</h2>' +
+    '<div class="card"><div class="lbl">' + esc(al.codigo) + ' · RA ' + esc(al.ra || '–') + ' · ' + esc([a.disciplina, a.titulo].filter(Boolean).join(' · ')) + '</div>' + (al.extra ? '<div class="alerta">Prova extra (aluno fora da lista). Digite o nome do aluno:</div><input type="text" style="margin-top:8px" value="' + (al.nome === 'ALUNO(A) NÃO LISTADO(A)' ? '' : esc(al.nome)) + '" placeholder="Nome do aluno" onchange="atual.aluno.nome = this.value.trim().toUpperCase() || \'ALUNO(A) NÃO LISTADO(A)\'; salvarDB()">' : '<h2 style="font-size:20px">' + esc(al.nome) + '</h2>') +
     '<div class="row" style="margin-top:8px;align-items:flex-end"><div><div class="lbl">Nota</div><div class="big">' + fmt(calc.nota) + '</div></div>' +
     '<div><div class="lbl">Acertos</div><div class="big" style="font-size:28px">' + calc.acertos + '/' + n + '</div></div></div>' +
     (pend ? '<div class="alerta">' + pend + (pend > 1 ? ' questões precisam' : ' questão precisa') + ' de conferência. Toque na resposta para corrigir.</div>' : '') +

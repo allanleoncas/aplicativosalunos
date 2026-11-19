@@ -38,7 +38,9 @@ function salvarDB(){
   salvando = setTimeout(() => IDB.set('db', db).catch(e => { console.error(e); toast('Não foi possível salvar neste navegador'); }), 150);
 }
 const av = () => db.ativa ? db.avaliacoes[db.ativa] : null;
-const alunosGerados = a => (a && a.gerado) ? a.gerado.alunos : [];
+// provas geradas; a prova extra em branco só entra nas contas depois de corrigida
+const alunosGerados = a => (a && a.gerado) ? a.gerado.alunos.filter(x => !x.extra || (a.resultados || {})[x.codigo]) : [];
+const todosGerados = a => (a && a.gerado) ? a.gerado.alunos : [];
 
 function novoId(){
   const s = Date.now().toString(36).slice(-5).toUpperCase() + Math.random().toString(36).slice(2, 4).toUpperCase();
@@ -79,7 +81,9 @@ function sortear(a){
   const uso = {}; banco.forEach(q => uso[q.id] = 0);
   const assin = new Set(); let anterior = new Set();
   const T = temas.length, saida = [];
-  a.alunos.forEach((al, idx) => {
+  // sempre uma prova extra em branco no final, para aluno que não está na lista
+  const lista = a.alunos.concat([{nome: 'ALUNO(A) NÃO LISTADO(A)', ra: '', cpf: '', extra: true}]);
+  lista.forEach((al, idx) => {
     // cotas por tema: todos os temas aparecem quando n >= nº de temas; o que sobra gira entre os alunos
     const cota = {}; temas.forEach(t => cota[t] = 0);
     const base = Math.floor(n / T), extra = n - base * T;
@@ -104,8 +108,10 @@ function sortear(a){
     const ordem = a.config.embaralharQuestoes ? embaralhar(escolha, r) : escolha;
     const questoes = ordem.map(q => ({qid: q.id, perm: embaralhar(q.alts.map((_, i) => i), r)}));
     const gabarito = questoes.map(qq => LETRAS[qq.perm.indexOf(banco.find(q => q.id === qq.qid).correta)]).join('');
-    const pad = a.alunos.length >= 100 ? 3 : 2;
-    saida.push({codigo: 'P' + String(idx + 1).padStart(pad, '0'), nome: al.nome, ra: al.ra || '', cpf: al.cpf || '', gabarito, questoes});
+    const pad = lista.length >= 100 ? 3 : 2;
+    const p = {codigo: 'P' + String(idx + 1).padStart(pad, '0'), nome: al.nome, ra: al.ra || '', cpf: al.cpf || '', gabarito, questoes};
+    if(al.extra) p.extra = true;
+    saida.push(p);
   });
   return {quando: new Date().toISOString(), layout: 'OMR2', alunos: saida, unicas: assin.size};
 }

@@ -45,6 +45,8 @@ Também há um **exemplo de demonstração** (avaliação `DEMO`, 3 alunos) e o 
 
 ## 4. Sorteio das provas (`sortear()` em `app.js`)
 
+- **Prova extra em branco**: o sorteio sempre acrescenta, no fim, uma prova a mais (`extra: true`, nome interno `ALUNO(A) NÃO LISTADO(A)`, próximo código, ex.: P54) para aluno que não está na lista. No PDF ela sai com `NOME: ____` e `CPF: ____` para preencher à mão, "Aluno(a): ____" na folha e rodapé "Prova extra (aluno fora da lista)". Na correção, a tela pede o nome do aluno (salvo em maiúsculas). `alunosGerados()` ignora a extra enquanto não for corrigida (contagens, turma, relatório); `todosGerados()` a inclui (leitura da folha).
+
 - Cotas por tema: todos os temas aparecem quando o nº de questões ≥ nº de temas; o que sobra gira entre os alunos.
 - Dentro do tema, prioriza as questões menos usadas e evita repetir as do aluno anterior da lista (vizinhos de carteira).
 - Garante combinações diferentes (até 40 tentativas por aluno); se o banco não permitir, avisa na tela.

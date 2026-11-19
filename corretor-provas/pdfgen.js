@@ -50,7 +50,7 @@
     if (compacta) {
       fonte(doc, 'bold', 10.5, NAVY); doc.text('FOLHA DE RESPOSTAS', ox + tx, oy + 8.5);
       fonte(doc, 'normal', 8.5);
-      doc.text(doc.splitTextToSize(san('Aluno(a): ' + aluno.nome), larg)[0], ox + tx, oy + 14);
+      doc.text(doc.splitTextToSize(san('Aluno(a): ' + (aluno.extra ? '_______________________________________' : aluno.nome)), larg)[0], ox + tx, oy + 14);
       doc.text(san('RA: ' + (aluno.ra || '') + '     Prova: ' + aluno.codigo), ox + tx, oy + 18.6);
       fonte(doc, 'normal', 7, [68, 74, 85]);
       doc.text('Preencha totalmente uma bolha por questão, com caneta azul ou preta. Não marque com X.', ox + tx, oy + 23.4);
@@ -178,13 +178,14 @@
       function rotulo(t, x, yy, estilo, tam, c) { fonte(doc, estilo || 'bold', tam || 9, c); doc.text(san(t), x, yy); return x + doc.getTextWidth(san(t)) + 1.5; }
       var H1 = 18;
       caixa(y, H1);
-      var doc2 = al.cpf ? 'CPF: ' + al.cpf : (al.ra ? 'RA: ' + al.ra : 'CPF: ______________');
+      var doc2 = al.cpf ? 'CPF: ' + al.cpf : (al.ra ? 'RA: ' + al.ra : 'CPF: ____________________');
       fonte(doc, 'bold', 11); var wDoc = doc.getTextWidth(san(doc2));
       doc.text(san(doc2), xR, y + 7, { align: 'right' });
-      var nomeTxt = 'NOME: ' + String(al.nome || '').toUpperCase(), tamN = 13;
+      var nomeTxt = 'NOME: ' + (al.extra ? '' : String(al.nome || '').toUpperCase()), tamN = 13;
       fonte(doc, 'bold', tamN);
       while (tamN > 7.5 && doc.getTextWidth(san(nomeTxt)) > CW - 8 - wDoc - 6) { tamN -= 0.5; fonte(doc, 'bold', tamN); }
       doc.text(san(nomeTxt), xL, y + 7);
+      if (al.extra) { var xn = xL + doc.getTextWidth('NOME: ') + 1; linha(xn, xR - wDoc - 8, y + 7); }
       var dt = 'Data da prova: ' + (av.data ? fmtData(av.data) : '____/____/______');
       fonte(doc, 'bold', 9); var wDt = doc.getTextWidth(san(dt));
       var xa = rotulo('Assinatura do(a) aluno(a):', xL, y + 14.5);
@@ -257,7 +258,7 @@
       folha(doc, L, (PW - L.largura) / 2, oyFolha, al, av.id, n, [av.curso, titulo].filter(Boolean).join(' - '));
       if (av.config.frenteVerso && (doc.getNumberOfPages() - pIni + 1) % 2 === 1) doc.addPage();
       var pFim = doc.getNumberOfPages(), tot = pFim - pIni + 1;
-      for (var p = pIni; p <= pFim; p++) { doc.setPage(p); rodape(doc, (al.nome + ' · ' + al.codigo), p - pIni + 1, tot); }
+      for (var p = pIni; p <= pFim; p++) { doc.setPage(p); rodape(doc, ((al.extra ? 'Prova extra (aluno fora da lista)' : al.nome) + ' · ' + al.codigo), p - pIni + 1, tot); }
       doc.setPage(pFim);
     });
     return doc;
@@ -324,8 +325,8 @@
 
   function gerarRelatorio(av) {
     var doc = new root.jspdf.jsPDF({ unit: 'mm', format: 'a4', compress: true });
-    var alunos = av.gerado.alunos.slice().sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
     var res = av.resultados || {};
+    var alunos = av.gerado.alunos.filter(function (a) { return !a.extra || res[a.codigo]; }).sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
     var notas = alunos.filter(function (a) { return res[a.codigo]; }).map(function (a) { return res[a.codigo].nota; });
     var media = notas.length ? notas.reduce(function (s, x) { return s + x; }, 0) / notas.length : null;
     var y = titulo(doc, 'Relatório de notas', [av.disciplina, av.titulo].filter(Boolean).join(' - ') || 'Avaliação',

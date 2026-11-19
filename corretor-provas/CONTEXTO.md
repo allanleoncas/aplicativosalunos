@@ -124,6 +124,7 @@ A versão 1 (localStorage) é migrada na abertura. Também importa arquivos de g
 - Ideias não pedidas ainda: relatório de acerto por questão e por tema; boletim individual; mais de 10 questões por folha (precisaria de layout OMR3).
 - Cabeçalho real (modelo UNIFADAP enviado em 19/11/2026) já embutido no app. Avaliações antigas em que foi enviado um cabeçalho fictício: clicar em *Voltar ao padrão UNIFADAP* no passo 2.
 - O ambiente do Claude não acessa github.io: confirmar a publicação no navegador do professor.
+- **Versão / cache**: `VERSAO_APP` em `app.js` e o `?v=` dos `<script>` em `index.html` devem ser trocados a cada publicação (arquivos carregados sob demanda, como `pdfgen.js` e `logo.js`, usam `VERSAO_APP`). Sem isso o navegador pode misturar arquivo novo com antigo — foi o que causou "VALOR DA PROVA: NaN PONTOS" em 19/11/2026.
 
 ## 9. Modelo de prova aprovado (19/11/2026) — não mudar sem pedido do professor
 

@@ -48,7 +48,7 @@ function novoId(){
 }
 function novaAvaliacao(){
   const a = {id: novoId(), curso: '', disciplina: '', professor: db.professor || '', titulo: 'Avaliação', chamada: '', data: '', valor_total: 10,
-    config: {n: 8, embaralharQuestoes: true, frenteVerso: true, mostrarTema: false, semente: 1},
+    config: {n: 8, nd: 0, valorDisc: 2, linhas: 8, embaralharQuestoes: true, frenteVerso: true, mostrarTema: false, semente: 1},
     cabecalho: null, banco: [], alunos: [], gerado: null, resultados: {}, criada: new Date().toISOString()};
   db.avaliacoes[a.id] = a; db.ativa = a.id; salvarDB(); return a;
 }
@@ -73,8 +73,20 @@ function hash(str){ let h = 2166136261; for(const c of str){ h ^= c.charCodeAt(0
 function embaralhar(arr, r){ const a = arr.slice(); for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 function combinacoes(n, k){ let c = 1; for(let i = 1; i <= k; i++){ c = c * (n - k + i) / i; if(c > 1e9) return c; } return Math.round(c); }
 
+// tipos de questão: objetiva (A a E, lida pela câmera) e discursiva (D, nota lançada pelo professor)
+const objetivas = a => (a.banco || []).filter(q => q.tipo !== 'D');
+const discursivas = a => (a.banco || []).filter(q => q.tipo === 'D');
+// valor de cada objetiva e de cada discursiva
+function valores(a, al){
+  const total = +a.valor_total || 10, nObj = al ? al.gabarito.length : Math.min(+a.config.n, MAXQ);
+  const nd = al ? (al.disc || []).length : Math.min(+a.config.nd || 0, discursivas(a).length);
+  const vd = nd ? Math.min(+a.config.valorDisc || 0, total) : 0;
+  return {vq: nObj ? (total - vd) / nObj : 0, vdq: nd ? vd / nd : 0, nObj, nd, totalObj: total - vd, totalDisc: vd};
+}
 function sortear(a){
-  const banco = a.banco, n = Math.min(+a.config.n, banco.length, MAXQ);
+  const banco = objetivas(a), n = Math.min(+a.config.n, banco.length, MAXQ);
+  const bancoD = discursivas(a), nd = Math.min(+a.config.nd || 0, bancoD.length), usoD = {}; bancoD.forEach(q => usoD[q.id] = 0);
+  let anteriorD = new Set();
   const r = rng(hash(a.id + ':' + a.config.semente));
   const temas = [...new Set(banco.map(q => q.tema || 'Geral'))];
   const porTema = {}; temas.forEach(t => porTema[t] = banco.filter(q => (q.tema || 'Geral') === t));
@@ -110,6 +122,11 @@ function sortear(a){
     const gabarito = questoes.map(qq => LETRAS[qq.perm.indexOf(banco.find(q => q.id === qq.qid).correta)]).join('');
     const pad = lista.length >= 100 ? 3 : 2;
     const p = {codigo: 'P' + String(idx + 1).padStart(pad, '0'), nome: al.nome, ra: al.ra || '', cpf: al.cpf || '', gabarito, questoes};
+    if(nd){
+      const ds = bancoD.map(q => ({q, k: usoD[q.id] + (anteriorD.has(q.id) ? 0.7 : 0) + r() * 0.9})).sort((x, y) => x.k - y.k).slice(0, nd).map(o => o.q);
+      ds.forEach(q => usoD[q.id]++); anteriorD = new Set(ds.map(q => q.id));
+      p.disc = bancoD.filter(q => ds.includes(q)).map(q => q.id);
+    }
     if(al.extra) p.extra = true;
     saida.push(p);
   });
@@ -138,15 +155,14 @@ async function lerPlanilha(arquivo){
 }
 function interpretarBanco(linhas){
   const iCab = linhas.findIndex(l => l.some(c => norm(c) === 'enunciado'));
+  const cTipo = iCab < 0 ? -1 : linhas[iCab].map(norm).findIndex(c => ['tipo', 'tipo de questao', 'formato'].includes(c));
   if(iCab < 0) throw new Error('Não encontrei a coluna "Enunciado". Use a planilha modelo.');
   const cab = linhas[iCab].map(norm);
   const col = nomes => cab.findIndex(c => nomes.includes(c));
   const cTema = col(['tema', 'aula', 'assunto', 'unidade', 'conteudo']), cNivel = col(['nivel', 'dificuldade']), cEnun = col(['enunciado']);
   const cAlt = ['a', 'b', 'c', 'd', 'e'].map(l => col([l, 'alternativa ' + l, 'alt ' + l, '(' + l + ')']));
   const cCor = col(['correta', 'resposta', 'gabarito', 'resposta correta']), cCom = col(['comentario', 'justificativa', 'explicacao']);
-  if(cAlt[0] < 0 || cAlt[1] < 0) throw new Error('Faltam as colunas das alternativas (A, B, C, D, E).');
-  if(cCor < 0) throw new Error('Falta a coluna "Correta".');
-  const banco = [], erros = [];
+  const banco = [], erros = []; let nO = 0, nD = 0;
   for(let i = iCab + 1; i < linhas.length; i++){
     const l = linhas[i], v = c => c < 0 ? '' : String(l[c] == null ? '' : l[c]).trim();
     if(!v(cEnun) && cAlt.every(c => !v(c))) continue;
@@ -155,20 +171,27 @@ function interpretarBanco(linhas){
     const correta = LETRAS.indexOf(v(cCor).toUpperCase().replace(/[^A-E]/g, '').slice(0, 1));
     const linha = i + 1;
     if(!v(cEnun)){ erros.push('Linha ' + linha + ': enunciado vazio.'); continue; }
+    // discursiva: tipo "Discursiva" ou sem nenhuma alternativa
+    if(/^disc|^dissert|^aberta/.test(norm(v(cTipo))) || !alts.length){
+      banco.push({id: 'D' + String(++nD).padStart(2, '0'), tipo: 'D', tema: v(cTema) || 'Geral', nivel: v(cNivel), enunciado: v(cEnun), alts: [], correta: -1, comentario: v(cCom)});
+      continue;
+    }
     if(alts.length < 2 || alts.some(x => !x)){ erros.push('Linha ' + linha + ': alternativas incompletas.'); continue; }
     if(correta < 0 || correta >= alts.length){ erros.push('Linha ' + linha + ': a coluna "Correta" deve ter uma letra entre A e ' + LETRAS[alts.length - 1] + '.'); continue; }
-    banco.push({id: 'Q' + String(banco.length + 1).padStart(3, '0'), tema: v(cTema) || 'Geral', nivel: v(cNivel), enunciado: v(cEnun), alts, correta, comentario: v(cCom)});
+    banco.push({id: 'Q' + String(++nO).padStart(3, '0'), tema: v(cTema) || 'Geral', nivel: v(cNivel), enunciado: v(cEnun), alts, correta, comentario: v(cCom)});
   }
   return {banco, erros};
 }
 async function baixarModeloBanco(){
   await carregarScript('lib/xlsx.full.min.js');
   const wb = XLSX.utils.book_new();
-  const q = [['Tema', 'Nível', 'Enunciado', 'A', 'B', 'C', 'D', 'E', 'Correta', 'Comentário'],
-    ['Aula 1 – Conceitos básicos', 'Lembrar', 'Segundo Mankiw (2013), a economia estuda:', 'Como a sociedade administra seus recursos escassos.', 'Apenas o mercado financeiro.', 'Somente as decisões do governo.', 'A contabilidade das empresas.', 'A história do dinheiro.', 'A', 'Escassez é o problema central da economia.'],
-    ['Aula 2 – Oferta e demanda', 'Compreender', 'Se o preço de um bem sobe, o que acontece com a quantidade demandada (lei da demanda)?', 'Aumenta.', 'Diminui.', 'Não se altera.', 'Fica igual à oferta.', '', 'B', 'Questões com 4 alternativas: deixe a coluna E vazia.']];
+  const q = [['Tipo', 'Tema', 'Nível', 'Enunciado', 'A', 'B', 'C', 'D', 'E', 'Correta', 'Comentário'],
+    ['Objetiva', 'Aula 1 – Conceitos básicos', 'Lembrar', 'Segundo Mankiw (2013), a economia estuda:', 'Como a sociedade administra seus recursos escassos.', 'Apenas o mercado financeiro.', 'Somente as decisões do governo.', 'A contabilidade das empresas.', 'A história do dinheiro.', 'A', 'Escassez é o problema central da economia.'],
+    ['Objetiva', 'Aula 2 – Oferta e demanda', 'Compreender', 'Se o preço de um bem sobe, o que acontece com a quantidade demandada (lei da demanda)?', 'Aumenta.', 'Diminui.', 'Não se altera.', 'Fica igual à oferta.', '', 'B', 'Questões com 4 alternativas: deixe a coluna E vazia.'],
+    ['Discursiva', 'Aula 1 – Conceitos básicos', 'Analisar', 'Mankiw (2013) afirma que "as pessoas enfrentam tradeoffs". Explique o conceito de custo de oportunidade e dê um exemplo da vida de um estudante universitário.', '', '', '', '', '', '', 'Resposta esperada: custo de oportunidade é aquilo de que se abre mão para obter algo; ex.: horas de estudo no lugar de trabalho remunerado.'],
+    ['Discursiva', 'Aula 2 – Oferta e demanda', 'Aplicar', 'Com base na lei da oferta e da demanda (Mankiw, 2013), explique o que acontece com o preço e a quantidade de equilíbrio do café quando uma geada destrói parte da safra.', '', '', '', '', '', '', 'Resposta esperada: a oferta diminui (curva desloca para a esquerda), o preço de equilíbrio sobe e a quantidade cai.']];
   const ws = XLSX.utils.aoa_to_sheet(q);
-  ws['!cols'] = [{wch: 26}, {wch: 12}, {wch: 60}, {wch: 34}, {wch: 34}, {wch: 34}, {wch: 34}, {wch: 34}, {wch: 9}, {wch: 40}];
+  ws['!cols'] = [{wch: 11}, {wch: 26}, {wch: 12}, {wch: 60}, {wch: 34}, {wch: 34}, {wch: 34}, {wch: 34}, {wch: 34}, {wch: 9}, {wch: 40}];
   XLSX.utils.book_append_sheet(wb, ws, 'Questões');
   const instr = [['Como preencher o banco de questões'], [''],
     ['1. Uma questão por linha, a partir da linha 2. Não mude os nomes das colunas.'],
@@ -176,7 +199,9 @@ async function baixarModeloBanco(){
     ['3. Nível (opcional): Lembrar, Compreender, Aplicar, Analisar...'],
     ['4. A a E: alternativas. Para questões com 4 alternativas, deixe E vazia.'],
     ['5. Correta: a letra da alternativa certa (A, B, C, D ou E), como está na planilha. O app embaralha as alternativas em cada prova.'],
-    ['6. Comentário (opcional): explicação da resposta, para uso do professor.']];
+    ['6. Comentário (opcional): explicação da resposta, para uso do professor.'],
+    ['7. Tipo: Objetiva ou Discursiva. Questão discursiva: deixe A a E e Correta vazias e escreva em Comentário a resposta esperada (sai no gabarito do professor).'],
+    ['8. No app, escolha quantas objetivas e quantas discursivas cada prova terá e quanto valem as discursivas. As objetivas são corrigidas pela câmera; a nota das discursivas é lançada pelo professor na correção.']];
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(instr), 'Instruções');
   XLSX.writeFile(wb, 'modelo_banco_de_questoes.xlsx');
 }
@@ -258,10 +283,15 @@ async function lerCabecalho(arquivo){
 }
 
 // =================== notas ===================
-function calcular(a, aluno, marcadas){
-  const n = aluno.gabarito.length, vq = (+a.valor_total || 10) / n;
+function calcular(a, aluno, marcadas, disc){
+  const n = aluno.gabarito.length, V = valores(a, aluno);
   let ac = 0; for(let i = 0; i < n; i++) if(marcadas[i] && marcadas[i] === aluno.gabarito[i]) ac++;
-  return {acertos: ac, n, nota: Math.round(ac * vq * 100) / 100};
+  const notaObj = Math.round(ac * V.vq * 100) / 100;
+  if(!V.nd) return {acertos: ac, n, nota: notaObj};
+  disc = disc || [];
+  let soma = 0, falta = 0;
+  for(let k = 0; k < V.nd; k++){ const x = disc[k]; if(x == null || x === '' || isNaN(x)) falta++; else soma += Math.min(+x, V.vdq); }
+  return {acertos: ac, n, notaObj, notaDisc: Math.round(soma * 100) / 100, faltaDisc: falta, nota: Math.round((notaObj + soma) * 100) / 100};
 }
 
 // =================== downloads ===================

@@ -139,7 +139,7 @@ function renderEditor(){
   const a = av(), g = alunosGerados(a), nRes = Object.keys(a.resultados || {}).length;
   const temas = {}; a.banco.forEach(q => temas[q.tema] = (temas[q.tema] || 0) + 1);
   const n = Math.min(+a.config.n, MAXQ);
-  const comb = a.banco.length ? combinacoes(a.banco.length, Math.min(n, a.banco.length)) : 0;
+  const nObjB = objetivas(a).length, comb = nObjB ? combinacoes(nObjB, Math.min(n, nObjB)) : 0, ndq = Math.min(+a.config.nd || 0, discursivas(a).length);
   const imp = a.gerado && a.gerado.importado;
   let h = '<button class="link" onclick="voltarLista()">‹ Avaliações</button>';
   // 1. dados
@@ -151,8 +151,13 @@ function renderEditor(){
     '<datalist id="chamadas"><option>Primeira chamada</option><option>Segunda chamada</option><option>Exame</option><option>Recuperação</option></datalist>' +
     '<div class="row"><label class="campo"><span>Data</span><input type="date" value="' + esc(a.data) + '" onchange="setAv(\'data\', this.value)"></label>' +
     '<label class="campo"><span>Valor da prova (pontos)</span><input type="number" min="0" step="0.5" value="' + esc(a.valor_total) + '" onchange="setAv(\'valor_total\', +this.value)"></label></div>' +
-    '<label class="campo"><span>Questões por prova</span><select onchange="setCfg(\'n\', +this.value)">' +
+    '<label class="campo"><span>Questões objetivas por prova</span><select onchange="setCfg(\'n\', +this.value)">' +
     Array.from({length: 10}, (_, i) => '<option' + (i + 1 === n ? ' selected' : '') + '>' + (i + 1) + '</option>').join('') + '</select></label>' +
+    '<label class="campo"><span>Questões discursivas por prova</span><select onchange="setCfg(\'nd\', +this.value)">' +
+    Array.from({length: 6}, (_, i) => '<option value="' + i + '"' + (i === (+a.config.nd || 0) ? ' selected' : '') + '>' + (i ? i : 'Nenhuma') + '</option>').join('') + '</select></label>' +
+    ((+a.config.nd || 0) ? '<div class="row"><label class="campo"><span>Valor das discursivas (total, pontos)</span><input type="number" min="0" step="0.5" value="' + esc(a.config.valorDisc == null ? 2 : a.config.valorDisc) + '" onchange="setCfg(\'valorDisc\', +this.value)"></label>' +
+      '<label class="campo"><span>Linhas para resposta</span><select onchange="setCfg(\'linhas\', +this.value)">' + [5, 6, 8, 10, 12, 15, 20].map(x => '<option' + (x === (+a.config.linhas || 8) ? ' selected' : '') + '>' + x + '</option>').join('') + '</select></label></div>' +
+      (() => { const V = valores(a); return '<p class="lbl" style="margin-top:6px">Objetivas: ' + fmt(V.totalObj) + ' pontos (' + fmt(V.vq) + ' cada) · Discursivas: ' + fmt(V.totalDisc) + ' pontos (' + fmt(V.vdq) + ' cada). As objetivas são corrigidas pela câmera; a nota das discursivas você lança na tela de correção.</p>'; })() : '') +
     check('embaralharQuestoes', 'Embaralhar a ordem das questões', a.config.embaralharQuestoes) +
     check('frenteVerso', 'Impressão frente e verso (cada prova com nº par de páginas)', a.config.frenteVerso) +
     check('mostrarTema', 'Mostrar o tema/aula ao lado do número da questão', a.config.mostrarTema) + '</div>';
@@ -168,7 +173,7 @@ function renderEditor(){
      : '<button class="btn sec" onclick="$(\'#arqCab\').click()">Usar outro cabeçalho (imagem ou PDF)</button>') + '</div></div>';
   // 3. banco
   h += '<div class="card"><div class="passo">3</div><h2>Banco de questões</h2>' +
-    (a.banco.length ? '<p><b>' + a.banco.length + ' questões</b> em ' + Object.keys(temas).length + ' tema(s):</p><ul class="temas">' +
+    (a.banco.length ? '<p><b>' + objetivas(a).length + ' objetivas' + (discursivas(a).length ? ' e ' + discursivas(a).length + ' discursivas' : '') + '</b> em ' + Object.keys(temas).length + ' tema(s):</p><ul class="temas">' +
        Object.entries(temas).map(([t, c]) => '<li><span>' + esc(t) + '</span><b>' + c + '</b></li>').join('') + '</ul>'
      : '<p class="muted">Preencha a planilha modelo (uma questão por linha) e envie aqui. Aceita Excel (.xlsx) ou CSV.</p>') +
     '<div class="row" style="margin-top:10px"><button class="btn sec" onclick="baixarModeloBanco()">Baixar planilha modelo</button>' +
@@ -183,14 +188,15 @@ function renderEditor(){
     '<div class="row" style="margin-top:8px"><button class="btn sec" onclick="usarListaColada()">Usar lista colada</button>' +
     '<button class="btn sec" onclick="$(\'#arqAlunos\').click()">Enviar planilha</button></div></div>';
   // 5. provas
-  const pronto = a.banco.length && a.alunos.length;
+  const pronto = objetivas(a).length && a.alunos.length;
   h += '<div class="card"><div class="passo">5</div><h2>Provas</h2>';
   if(imp) h += '<p class="muted">Avaliação importada de um arquivo de gabaritos: ' + g.length + ' provas prontas para correção.</p>';
   else if(!pronto) h += '<p class="muted">Complete o banco de questões e a lista de alunos para gerar as provas.</p>';
   else {
-    h += '<p>' + a.alunos.length + ' provas (+ 1 extra em branco, para aluno fora da lista) com ' + Math.min(n, a.banco.length) + ' questões cada, sorteadas de ' + a.banco.length + ' (' +
+    h += '<p>' + a.alunos.length + ' provas (+ 1 extra em branco, para aluno fora da lista) com ' + Math.min(n, nObjB) + ' objetivas' + (ndq ? ' e ' + ndq + ' discursiva' + (ndq > 1 ? 's' : '') : '') + ' cada, sorteadas de ' + nObjB + ' objetivas' + (ndq ? ' e ' + discursivas(a).length + ' discursivas' : '') + ' (' +
          (comb >= a.alunos.length ? 'todas as combinações diferentes' : 'só há ' + comb + ' combinações possíveis: algumas provas vão repetir questões, mas com alternativas embaralhadas') + ').</p>' +
-         (n > a.banco.length ? '<div class="alerta">O banco tem menos questões que o número por prova.</div>' : '');
+         (n > nObjB ? '<div class="alerta">O banco tem menos questões objetivas que o número por prova.</div>' : '') +
+         ((+a.config.nd || 0) > discursivas(a).length ? '<div class="alerta">O banco tem ' + discursivas(a).length + ' discursiva(s); a prova vai usar só essas.</div>' : '');
     h += '<div class="stack" style="margin-top:10px"><button class="btn acc" onclick="baixarProvas()">' + (g.length ? 'Baixar provas (PDF)' : 'Gerar provas (PDF)') + '</button>';
     if(g.length) h += '<button class="btn sec" onclick="baixarGabarito()">Baixar gabarito do professor (PDF)</button>' +
                       '<button class="btn sec" onclick="sortearDeNovo()">Sortear as provas de novo</button>';
@@ -217,15 +223,20 @@ function alteraGerado(){
 }
 function setAv(k, v){
   const a = av();
-  if(k === 'valor_total' && a.resultados){ a.valor_total = v; Object.entries(a.resultados).forEach(([c, r]) => { const al = alunosGerados(a).find(x => x.codigo === c); if(al) Object.assign(r, calcular(a, al, r.marcadas)); }); }
+  if(k === 'valor_total' && a.resultados){ a.valor_total = v; Object.entries(a.resultados).forEach(([c, r]) => { const al = alunosGerados(a).find(x => x.codigo === c); if(al) Object.assign(r, calcular(a, al, r.marcadas, r.disc)); }); }
   else a[k] = v;
   if(k === 'professor' && v) db.professor = v;
   salvarDB(); render();
 }
 function setCfg(k, v){
   const a = av();
-  if(['n', 'embaralharQuestoes'].includes(k) && a.gerado && !alteraGerado()) return render();
-  a.config[k] = v; salvarDB(); render();
+  if(['n', 'nd', 'embaralharQuestoes'].includes(k) && a.gerado && !alteraGerado()) return render();
+  a.config[k] = v;
+  if(k === 'valorDisc') recalcularNotas(a);
+  salvarDB(); render();
+}
+function recalcularNotas(a){
+  Object.entries(a.resultados || {}).forEach(([c, r]) => { const al = alunosGerados(a).find(x => x.codigo === c); if(al) Object.assign(r, calcular(a, al, r.marcadas, r.disc)); });
 }
 async function onCabecalho(inp){
   const f = inp.files[0]; inp.value = ''; if(!f) return;
@@ -259,8 +270,9 @@ function definirAlunos(lista){
 function verBanco(){
   const a = av();
   $('#resConteudo').innerHTML = '<button class="link" onclick="fecharRes()">‹ Voltar</button><h2 style="margin:8px 0 12px">Banco de questões (' + a.banco.length + ')</h2>' +
-    a.banco.map((q, i) => '<div class="card"><div class="lbl">' + (i + 1) + ' · ' + esc(q.tema) + (q.nivel ? ' · ' + esc(q.nivel) : '') + '</div><p style="margin:4px 0 8px">' + esc(q.enunciado) + '</p>' +
-      q.alts.map((x, k) => '<div class="' + (k === q.correta ? 'certa' : '') + '"><b>' + LETRAS[k] + ')</b> ' + esc(x) + '</div>').join('') + '</div>').join('');
+    a.banco.map((q, i) => '<div class="card"><div class="lbl">' + esc(q.id) + ' · ' + (q.tipo === 'D' ? '<span class="pill warn">discursiva</span> · ' : '') + esc(q.tema) + (q.nivel ? ' · ' + esc(q.nivel) : '') + '</div><p style="margin:4px 0 8px">' + esc(q.enunciado) + '</p>' +
+      (q.tipo === 'D' ? '<div class="certa">' + esc(q.comentario || 'Sem resposta esperada.') + '</div>' :
+      q.alts.map((x, k) => '<div class="' + (k === q.correta ? 'certa' : '') + '"><b>' + LETRAS[k] + ')</b> ' + esc(x) + '</div>').join('')) + '</div>').join('');
   $('#res').classList.add('on'); $('#res').scrollTop = 0;
 }
 function garantirGerado(){
@@ -382,21 +394,22 @@ function filtrarTurma(){
     .filter(x => !q || (x.nome + ' ' + (x.ra || '') + ' ' + x.codigo).toLowerCase().includes(q))
     .forEach(al => {
       const r = res[al.codigo], li = document.createElement('li');
-      li.innerHTML = '<div class="nome"><b></b><span class="lbl"></span></div>' + (r ? (r.pendencias ? '<span class="pill warn">' + r.pendencias + ' p/ conferir</span> ' : '') +
+      li.innerHTML = '<div class="nome"><b></b><span class="lbl"></span></div>' + (r ? (r.faltaDisc ? '<span class="pill warn">falta discursiva</span> ' : '') + (r.pendencias ? '<span class="pill warn">' + r.pendencias + ' p/ conferir</span> ' : '') +
         '<span class="nota">' + fmt(r.nota) + '</span>' : '<span class="pill">pendente</span>');
       li.querySelector('b').textContent = al.nome;
       li.querySelector('.lbl').textContent = 'RA ' + (al.ra || '–') + ' · ' + al.codigo + (r ? ' · ' + r.acertos + '/' + r.n + ' acertos' : '');
-      li.onclick = () => r ? mostrarResultado({aluno: al, marcadas: r.marcadas.slice(), status: r.status.slice(), salvo: true}) : toast('Ainda não corrigida');
+      li.onclick = () => r ? mostrarResultado({aluno: al, marcadas: r.marcadas.slice(), status: r.status.slice(), disc: r.disc ? r.disc.slice() : undefined, salvo: true}) : toast('Ainda não corrigida');
       ul.appendChild(li);
     });
 }
 function exportarCSV(){
   const a = av(); if(!a) return;
   const g = alunosGerados(a), n = Math.max(...g.map(x => x.gabarito.length)), res = a.resultados || {};
-  const cab = ['Código', 'Nome', 'RA', 'Situação', 'Acertos', 'Questões', 'Nota']; for(let i = 1; i <= n; i++) cab.push('Q' + i); cab.push('Gabarito', 'Conferir');
+  const cab = ['Código', 'Nome', 'RA', 'Situação', 'Acertos', 'Questões', 'Nota objetivas', 'Nota discursivas', 'Nota']; for(let i = 1; i <= n; i++) cab.push('Q' + i); cab.push('Gabarito', 'Conferir');
   const linhas = [cab];
   g.slice().sort((x, y) => x.nome.localeCompare(y.nome, 'pt-BR')).forEach(al => {
-    const r = res[al.codigo], l = [al.codigo, al.nome, al.ra || '', r ? 'corrigida' : 'pendente', r ? r.acertos : '', al.gabarito.length, r ? fmt(r.nota) : ''];
+    const r = res[al.codigo], l = [al.codigo, al.nome, al.ra || '', r ? (r.faltaDisc ? 'falta discursiva' : 'corrigida') : 'pendente', r ? r.acertos : '', al.gabarito.length,
+      r ? fmt(r.notaObj != null ? r.notaObj : r.nota) : '', r && r.notaDisc != null ? fmt(r.notaDisc) : '', r ? fmt(r.nota) : ''];
     for(let i = 0; i < n; i++) l.push(r ? (r.marcadas[i] || '-') : '');
     l.push(al.gabarito, r ? r.status.map((s, i) => (s !== 'ok' && s !== 'manual') ? 'Q' + (i + 1) + ' ' + s : '').filter(Boolean).join(', ') : '');
     linhas.push(l);
@@ -501,7 +514,10 @@ function lerFoto(inp){
 let atual = null;
 function mostrarResultado(it){
   atual = it;
-  const a = av(), al = it.aluno, n = al.gabarito.length, calc = calcular(a, al, it.marcadas), ja = (a.resultados || {})[al.codigo];
+  const a = av(), al = it.aluno, n = al.gabarito.length, ja = (a.resultados || {})[al.codigo];
+  const V = valores(a, al);
+  if(!it.disc) it.disc = (ja && ja.disc) ? ja.disc.slice() : Array(V.nd).fill(null);
+  const calc = calcular(a, al, it.marcadas, it.disc);
   const pend = it.status.filter(s => s !== 'ok' && s !== 'manual').length;
   const nomes = {ok: '', branco: 'branco', multipla: 'dupla', duvida: 'dúvida', manual: 'editada'};
   let linhas = '';
@@ -515,11 +531,15 @@ function mostrarResultado(it){
   $('#resConteudo').innerHTML =
     '<div class="card"><div class="lbl">' + esc(al.codigo) + ' · RA ' + esc(al.ra || '–') + ' · ' + esc([a.disciplina, a.titulo].filter(Boolean).join(' · ')) + '</div>' + (al.extra ? '<div class="alerta">Prova extra (aluno fora da lista). Digite o nome do aluno:</div><input type="text" style="margin-top:8px" value="' + (al.nome === 'ALUNO(A) NÃO LISTADO(A)' ? '' : esc(al.nome)) + '" placeholder="Nome do aluno" onchange="atual.aluno.nome = this.value.trim().toUpperCase() || \'ALUNO(A) NÃO LISTADO(A)\'; salvarDB()">' : '<h2 style="font-size:20px">' + esc(al.nome) + '</h2>') +
     '<div class="row" style="margin-top:8px;align-items:flex-end"><div><div class="lbl">Nota</div><div class="big">' + fmt(calc.nota) + '</div></div>' +
-    '<div><div class="lbl">Acertos</div><div class="big" style="font-size:28px">' + calc.acertos + '/' + n + '</div></div></div>' +
+    '<div><div class="lbl">Acertos' + (V.nd ? ' (objetivas)' : '') + '</div><div class="big" style="font-size:28px">' + calc.acertos + '/' + n + '</div></div></div>' +
+    (V.nd ? '<p class="lbl" style="margin-top:6px">Objetivas ' + fmt(calc.notaObj) + ' + discursivas ' + fmt(calc.notaDisc) + '</p>' +
+      (calc.faltaDisc ? '<div class="alerta">Falta lançar a nota de ' + calc.faltaDisc + ' discursiva' + (calc.faltaDisc > 1 ? 's' : '') + ' (mais abaixo).</div>' : '') : '') +
     (pend ? '<div class="alerta">' + pend + (pend > 1 ? ' questões precisam' : ' questão precisa') + ' de conferência. Toque na resposta para corrigir.</div>' : '') +
     (ja && !it.salvo ? '<div class="alerta bad">Esta prova já foi corrigida (nota ' + fmt(ja.nota) + '). Salvar vai substituir.</div>' : '') + '</div>' +
     '<div class="card"><table class="qgrid"><tr><th>Questão</th><th>Marcada</th><th>Gabarito</th><th></th></tr>' + linhas + '</table>' +
     '<p class="lbl" style="margin-top:8px">Questão em branco ou com dupla marcação conta como errada, a menos que você escolha a resposta.</p></div>' +
+    (V.nd ? '<div class="card"><h2>Questões discursivas</h2><p class="lbl">Leia as respostas na prova do aluno e digite a nota de cada uma (de 0 a ' + fmt(V.vdq) + ').</p>' +
+      (al.disc || []).map((id, k) => '<label class="campo"><span>Questão ' + (n + k + 1) + ' · ref. ' + esc(id) + ' (vale ' + fmt(V.vdq) + ')</span><input type="text" inputmode="decimal" value="' + (it.disc[k] == null ? '' : it.disc[k]) + '" placeholder="nota" onchange="notaDisc(' + k + ', this.value)"></label>').join('') + '</div>' : '') +
     '<div class="card" id="cardSnap" style="display:none"><div class="lbl">Imagem lida</div><canvas class="snap" id="snap"></canvas></div>' +
     '<div class="stack">' +
     (it.salvo ? '<button class="btn acc" onclick="salvarAtual(false)">Salvar alterações</button><button class="btn sec" onclick="fecharRes()">Voltar</button>' +
@@ -553,12 +573,19 @@ function abrirPicker(i){
   });
   $('#picker').classList.add('on');
 }
+function notaDisc(k, v){
+  const V = valores(av(), atual.aluno);
+  v = String(v).replace(',', '.').trim();
+  atual.disc[k] = v === '' ? null : Math.max(0, Math.min(V.vdq, +v || 0));
+  mostrarResultado(atual);
+}
 function fecharPicker(){ $('#picker').classList.remove('on'); }
 function salvarAtual(proxima){
-  const a = av(), al = atual.aluno, calc = calcular(a, al, atual.marcadas);
+  const a = av(), al = atual.aluno, calc = calcular(a, al, atual.marcadas, atual.disc);
   a.resultados = a.resultados || {};
   a.resultados[al.codigo] = {marcadas: atual.marcadas, status: atual.status, acertos: calc.acertos, n: calc.n, nota: calc.nota,
     pendencias: atual.status.filter(s => s !== 'ok' && s !== 'manual').length, quando: new Date().toISOString()};
+  if(atual.disc && atual.disc.length) Object.assign(a.resultados[al.codigo], {disc: atual.disc.slice(), notaObj: calc.notaObj, notaDisc: calc.notaDisc, faltaDisc: calc.faltaDisc});
   salvarDB(); toast('Salvo: ' + al.nome + ' — nota ' + fmt(calc.nota));
   $('#res').classList.remove('on'); render();
   if(proxima) abrirCamera();

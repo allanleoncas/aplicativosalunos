@@ -150,6 +150,27 @@
       }
     };
   }
+  // questão discursiva: enunciado + linhas para a resposta
+  function blocoDiscursiva(doc, num, q, valor, mostrarTema, larg, nLinhas) {
+    var tamE = 9.5, dy = 7.2;
+    fonte(doc, 'normal', tamE);
+    var enun = doc.splitTextToSize(san(q.enunciado), larg);
+    var hT = 5.2, hE = alturaLinhas(enun.length, tamE, 1.25) + 2, hL = nLinhas * dy;
+    return {
+      altura: hT + hE + hL + 4,
+      desenhar: function (x, y) {
+        fonte(doc, 'bold', 9.5, NAVY); doc.text('Questão ' + num, x, y + 3.3);
+        var tx = x + doc.getTextWidth('Questão ' + num) + 2.5;
+        fonte(doc, 'normal', 7.8, CINZA);
+        var info = '(' + fmtNum(valor) + ' pt) discursiva - ref. ' + q.id + (mostrarTema && q.tema ? '  ' + san(q.tema) : '');
+        doc.text(doc.splitTextToSize(info, larg - (tx - x))[0] || '', tx, y + 3.3);
+        y += hT;
+        fonte(doc, 'normal', tamE); doc.text(enun, x, y + 3.1, { lineHeightFactor: 1.25 }); y += hE;
+        cor(doc, 'Draw', [175, 182, 196]); doc.setLineWidth(0.2);
+        for (var i = 1; i <= nLinhas; i++) doc.line(x, y + i * dy, x + larg, y + i * dy);
+      }
+    };
+  }
   function rodape(doc, texto, pagina, total) {
     fonte(doc, 'normal', 7.5, CINZA);
     doc.text(san(texto), M, PH - 8);
@@ -169,7 +190,8 @@
     av.gerado.alunos.forEach(function (al) {
       if (!primeira) doc.addPage(); primeira = false;
       var pIni = doc.getNumberOfPages(), n = al.questoes.length;
-      var valor = (+av.valor_total || 10) / n;
+      var V = root.valores ? root.valores(av, al) : { vq: (+av.valor_total || 10) / n, vdq: 0, nd: 0 }, valor = V.vq;
+      var discs = (al.disc || []).map(function (id) { return banco[id]; }).filter(Boolean);
       var y = cabecalhoImg(doc, av.cabecalho, M, av);
       // quadro do aluno
       var xL = M + 4, xR = M + CW - 4, CINZAL = [120, 126, 140];
@@ -209,11 +231,15 @@
       var xs = rotulo('Assinatura:', xa2, y + 18.5); linha(xs, xR, y + 18.5);
       y += H2 + 3;
       fonte(doc, 'normal', 8.3, CINZA);
-      var instr = doc.splitTextToSize(san(n + ' questões objetivas, valor total ' + fmtNum(+av.valor_total || 10) + ' pontos (' + fmtNum(valor) +
+      var instr = doc.splitTextToSize(san(discs.length
+        ? n + ' questões objetivas (' + fmtNum(valor) + ' ponto' + (valor === 1 ? '' : 's') + ' cada), com uma única alternativa correta, e ' + discs.length + ' questão' + (discs.length > 1 ? 'ões' : '') + ' discursiva' + (discs.length > 1 ? 's' : '') +
+          ' (' + fmtNum(V.vdq) + ' ponto' + (V.vdq === 1 ? '' : 's') + ' cada). Marque as objetivas na FOLHA DE RESPOSTAS, no final da prova. Responda as discursivas, à caneta, nas linhas abaixo de cada uma.'
+        : n + ' questões objetivas, valor total ' + fmtNum(+av.valor_total || 10) + ' pontos (' + fmtNum(valor) +
         ' cada), com uma única alternativa correta. Marque as respostas na FOLHA DE RESPOSTAS, no final da prova: somente ela será corrigida.'), CW);
       doc.text(instr, M, y + 2.4, { lineHeightFactor: 1.25 }); y += alturaLinhas(instr.length, 8.3, 1.25) + 3;
       // fluxo em duas colunas
       var blocos = al.questoes.map(function (qq, k) { return blocoQuestao(doc, k + 1, banco[qq.qid], qq.perm, valor, opcoes.mostrarTema, COL); });
+      discs.forEach(function (q, k) { blocos.push(blocoDiscursiva(doc, n + k + 1, q, V.vdq, opcoes.mostrarTema, COL, +av.config.linhas || 8)); });
       // simula para saber em que página a folha cabe
       function distribuir() {
         var pos = [], pag = 0, col = 0, yy = y, topo = y;
@@ -319,6 +345,24 @@
     y = tabela(doc, y, cols, linhas, { estilo: function (i, k) { return k >= 3 ? { b: true, cor: NAVY } : null; } });
     fonte(doc, 'normal', 8.5, CINZA);
     doc.text(san('As alternativas foram embaralhadas em cada prova: use sempre a linha do aluno. Documento de uso exclusivo do professor.'), M, y + 6);
+    var usadas = {};
+    av.gerado.alunos.forEach(function (a) { (a.disc || []).forEach(function (id) { usadas[id] = (usadas[id] || []).concat(a.codigo); }); });
+    var dq = (av.banco || []).filter(function (q) { return usadas[q.id]; });
+    if (dq.length) {
+      y += 14;
+      fonte(doc, 'bold', 12, NAVY); doc.text('Questões discursivas - resposta esperada', M, y); y += 6;
+      dq.forEach(function (q) {
+        fonte(doc, 'normal', 9); var en = doc.splitTextToSize(san(q.enunciado), CW);
+        fonte(doc, 'italic', 9); var rs = doc.splitTextToSize(san('Resposta esperada: ' + (q.comentario || '-')), CW);
+        var pv = doc.splitTextToSize(san('Provas: ' + usadas[q.id].join(', ')), CW);
+        var h = 6 + alturaLinhas(en.length + rs.length + pv.length, 9, 1.25) + 6;
+        if (y + h > PH - 16) { doc.addPage(); y = M + 4; }
+        fonte(doc, 'bold', 9.5, NAVY); doc.text(san('Ref. ' + q.id + (q.tema ? '  ·  ' + q.tema : '')), M, y); y += 5;
+        fonte(doc, 'normal', 9); doc.text(en, M, y, { lineHeightFactor: 1.25 }); y += alturaLinhas(en.length, 9, 1.25) + 1;
+        fonte(doc, 'italic', 9, [23, 116, 74]); doc.text(rs, M, y, { lineHeightFactor: 1.25 }); y += alturaLinhas(rs.length, 9, 1.25) + 1;
+        fonte(doc, 'normal', 8, CINZA); doc.text(pv, M, y, { lineHeightFactor: 1.25 }); y += alturaLinhas(pv.length, 8, 1.25) + 4;
+      });
+    }
     numerarRodapes(doc, 'Gabarito · ' + (av.disciplina || '') + ' · ' + (av.titulo || ''));
     return doc;
   }
@@ -353,7 +397,7 @@
     var linhas = alunos.map(function (a, i) {
       var r = res[a.codigo];
       return [String(i + 1), a.nome, a.ra || '-', a.codigo, r ? r.acertos + '/' + r.n : '-', r ? fmtNum(r.nota) : '-',
-              r ? (r.pendencias ? 'conferir (' + r.pendencias + ')' : 'corrigida') : 'não corrigida'];
+              r ? (r.faltaDisc ? 'falta discursiva' : r.pendencias ? 'conferir (' + r.pendencias + ')' : 'corrigida') : 'não corrigida'];
     });
     tabela(doc, y, cols, linhas, {
       estilo: function (i, k, v) {

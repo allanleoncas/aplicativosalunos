@@ -8,6 +8,9 @@
 <meta name="description" content="Gere provas individuais em PDF a partir de um banco de questões, corrija pela câmera do celular e emita o relatório de notas.">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231F3864'/%3E%3Ccircle cx='22' cy='24' r='7' fill='%23FF3B5F'/%3E%3Ccircle cx='42' cy='24' r='7' fill='none' stroke='%23fff' stroke-width='3'/%3E%3Ccircle cx='22' cy='44' r='7' fill='none' stroke='%23fff' stroke-width='3'/%3E%3Ccircle cx='42' cy='44' r='7' fill='%23fff'/%3E%3C/svg%3E">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="Corretor">
 <style>
 :root{--bg:#f1f3f8;--card:#fff;--ink:#141a2b;--mute:#5d6578;--line:#dde2ec;--navy:#1F3864;--navy2:#2E5FA3;--acc:#FF3B5F;
 --ok:#16784a;--okb:#dcf2e6;--bad:#b8322a;--badb:#fbe4e1;--warn:#8a5a00;--warnb:#fdf0cf}
@@ -106,18 +109,28 @@ h3.sec{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--
 .dia{flex:none !important;width:46px;height:50px;border-radius:10px;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1}
 .dia b{font-size:19px}.dia span{font-size:11.5px;color:var(--mute);text-transform:uppercase;font-weight:700}
 .barra-prog{height:6px;background:var(--bg);border-radius:9px;margin-top:10px;overflow:hidden}.barra-prog i{display:block;height:100%;background:var(--acc);border-radius:9px}
+.conta{flex:none;width:40px;height:40px;border-radius:50%;border:0;background:#1F3864;color:#fff;font-weight:800;font-size:14px;cursor:pointer}
+#login{display:none;position:fixed;inset:0;z-index:50;background:var(--bg);overflow:auto;padding:28px 16px}
+#login.on{display:block}
+.login-caixa{max-width:420px;margin:0 auto;text-align:left}
+.login-caixa h1{font-size:24px;font-weight:800;letter-spacing:-.01em;margin-top:12px}
+.login-logo{width:56px;height:56px;border-radius:14px;background:#1F3864;display:grid;place-items:center}
+#syncInfo[data-e="offline"],#syncInfo[data-e="erro"]{color:var(--acc)}
 </style>
 </head>
 <body>
+<div id="login"></div>
 <div class="app">
   <header class="top">
     <div class="logo"><svg width="24" height="24" viewBox="0 0 24 24"><circle cx="7" cy="8" r="3.4" fill="#FF3B5F"/><circle cx="17" cy="8" r="3.4" fill="none" stroke="#fff" stroke-width="1.6"/><circle cx="7" cy="17" r="3.4" fill="none" stroke="#fff" stroke-width="1.6"/><circle cx="17" cy="17" r="3.4" fill="#fff"/></svg></div>
-    <div style="min-width:0"><h1>Corretor de Provas</h1><small id="subtitulo">Carregando…</small></div>
+    <div style="min-width:0;flex:1"><h1>Corretor de Provas</h1><small id="subtitulo">Carregando…</small></div>
+    <button id="btnConta" class="conta" style="display:none" onclick="menuConta()" aria-label="Minha conta">?</button>
   </header>
   <section class="view on" id="v-inicio"></section>
   <section class="view" id="v-aval"></section>
   <section class="view" id="v-corrigir"></section>
   <section class="view" id="v-turma"></section>
+  <section class="view" id="v-admin"></section>
 </div>
 
 <nav class="tabs">
@@ -147,8 +160,9 @@ h3.sec{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--
 <input type="file" id="arqAlunos" accept=".xlsx,.xls,.csv,.ods,.txt" hidden onchange="onAlunosArq(this)">
 
 <script src="lib/jsQR.js"></script>
-<script src="omr.js?v=20261119d"></script>
-<script src="app.js?v=20261119d"></script>
-<script src="ui.js?v=20261119d"></script>
+<script src="omr.js?v=20261124a"></script>
+<script src="app.js?v=20261124a"></script>
+<script src="conta.js?v=20261124a"></script>
+<script src="ui.js?v=20261124a"></script>
 </body>
 </html>

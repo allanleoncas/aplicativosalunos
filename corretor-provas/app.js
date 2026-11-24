@@ -7,7 +7,7 @@ const LAYOUTS = {
     "bolhas":{"blocos":[{"x0":22,"y0":33},{"x0":84,"y0":33}],"porBloco":5,"dx":9,"dy":6.5,"raio":2.5,"letras":"ABCDE","max_questoes":10}}
 };
 const MAXQ = 10;
-const VERSAO_APP = '20261119d'; // mude a cada publicação para o navegador não usar arquivos antigos
+const VERSAO_APP = '20261124a'; // mude a cada publicação para o navegador não usar arquivos antigos
 const LETRAS = 'ABCDE';
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -22,8 +22,9 @@ const IDB = {
   async set(k, v){ const d = await this.abrir(); return new Promise((ok, err) => { const t = d.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, k); t.oncomplete = () => ok(); t.onerror = () => err(t.error); }); }
 };
 let db = {versao: 2, avaliacoes: {}, ativa: null};
+let DB_CHAVE = 'db'; // com login: 'db:<id do professor>' (cada professor tem seus dados no aparelho)
 async function carregarDB(){
-  try { const d = await IDB.get('db'); if(d && d.avaliacoes) db = d; } catch(e){ console.warn(e); }
+  try { const d = await IDB.get(DB_CHAVE); if(d && d.avaliacoes) db = d; } catch(e){ console.warn(e); }
   // migra a versão 1 (localStorage)
   try {
     const v1 = JSON.parse(localStorage.getItem('corretorProvas:v1') || 'null');
@@ -36,7 +37,8 @@ async function carregarDB(){
 let salvando = null;
 function salvarDB(){
   clearTimeout(salvando);
-  salvando = setTimeout(() => IDB.set('db', db).catch(e => { console.error(e); toast('Não foi possível salvar neste navegador'); }), 150);
+  salvando = setTimeout(() => IDB.set(DB_CHAVE, db).catch(e => { console.error(e); toast('Não foi possível salvar neste navegador'); }), 150);
+  if(typeof agendarSync === 'function') agendarSync();
 }
 const av = () => db.ativa ? db.avaliacoes[db.ativa] : null;
 // provas geradas; a prova extra em branco só entra nas contas depois de corrigida

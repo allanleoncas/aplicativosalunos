@@ -187,6 +187,29 @@
     var titulo = [av.disciplina, av.titulo].filter(Boolean).join(' - ');
     // folha compacta no rodapé da última página
     var oyFolha = PH - 14 - L.marcador / 2 - L.altura, topoFolha = oyFolha - L.marcador / 2 - 9;
+    // prova só com dissertativas: quadro de correção menor (QR para o app achar o aluno + notas por questão)
+    var H_ID = 36, topoID = PH - 14 - H_ID - 3;
+    function quadroCorrecao(doc, al, av, nd) {
+      var y0 = PH - 14 - H_ID, lado = 26;
+      cor(doc, 'Draw', CORAL); doc.setLineWidth(0.5); doc.line(M, y0 - 3, M + CW, y0 - 3);
+      cor(doc, 'Fill', [255, 255, 255]); cor(doc, 'Draw', LINHA); doc.setLineWidth(0.3); doc.roundedRect(M, y0, CW, H_ID, 2, 2, 'FD');
+      desenharQR(doc, 'DISC|' + av.id + '|' + al.codigo + '|' + nd, M + 4, y0 + (H_ID - lado) / 2, lado);
+      var x = M + lado + 9;
+      fonte(doc, 'bold', 10.5, NAVY); doc.text('QUADRO DE CORREÇÃO (uso do professor)', x, y0 + 7);
+      fonte(doc, 'normal', 8.3, CINZA);
+      doc.text(san('Prova ' + al.codigo + (al.extra ? '' : ' - ' + al.nome)), x, y0 + 12);
+      doc.text(san('Para lançar a nota no app: Corrigir > fotografe este quadro.'), x, y0 + 16.5);
+      fonte(doc, 'bold', 9, TINTA);
+      var cx = x, cy = y0 + 25;
+      for (var k = 0; k < nd; k++) {
+        var t = 'Q' + (k + 1) + ': ', w = doc.getTextWidth(t) + 12 + 5;
+        if (cx + w > M + CW - 4) { cx = x; cy += 6.5; }
+        doc.text(t, cx, cy); cor(doc, 'Draw', [120, 126, 140]); doc.setLineWidth(0.3); doc.line(cx + doc.getTextWidth(t), cy + 0.5, cx + doc.getTextWidth(t) + 12, cy + 0.5); cx += w;
+      }
+      var tn = 'Nota: ', wn = doc.getTextWidth(tn) + 18;
+      if (cx + wn > M + CW - 4) { cx = x; cy += 6.5; }
+      doc.text(tn, cx, cy); doc.line(cx + doc.getTextWidth(tn), cy + 0.5, cx + doc.getTextWidth(tn) + 18, cy + 0.5);
+    }
     av.gerado.alunos.forEach(function (al) {
       if (!primeira) doc.addPage(); primeira = false;
       var pIni = doc.getNumberOfPages(), n = al.questoes.length;
@@ -237,12 +260,34 @@
       var xs = rotulo('Assinatura:', xa2, y + 18.5); linha(xs, xR, y + 18.5);
       y += H2 + 3;
       fonte(doc, 'normal', 8.3, CINZA);
-      var instr = doc.splitTextToSize(san(discs.length
+      var instr = doc.splitTextToSize(san(!n
+        ? (discs.length > 1 ? 'Esta prova tem ' + discs.length + ' questões dissertativas' : 'Esta prova tem 1 questão dissertativa') + ' (' + fmtNum(V.vdq) + ' ponto' + (V.vdq === 1 ? '' : 's') + ' cada), valor total ' + fmtNum(V.total) +
+          ' pontos. Responda à caneta, nas linhas abaixo de cada questão. Não escreva no quadro de correção no final da prova.'
+        : discs.length
         ? n + ' questões objetivas (' + fmtNum(valor) + ' ponto' + (valor === 1 ? '' : 's') + ' cada), com uma única alternativa correta, e ' + discs.length + (discs.length > 1 ? ' questões' : ' questão') + ' discursiva' + (discs.length > 1 ? 's' : '') +
           ' (' + fmtNum(V.vdq) + ' ponto' + (V.vdq === 1 ? '' : 's') + ' cada). Marque as objetivas na FOLHA DE RESPOSTAS, no final da prova. Responda as discursivas, à caneta, nas linhas abaixo de cada uma.'
         : n + ' questões objetivas, valor total ' + fmtNum(V.total) + ' pontos (' + fmtNum(valor) +
         ' cada), com uma única alternativa correta. Marque as respostas na FOLHA DE RESPOSTAS, no final da prova: somente ela será corrigida.'), CW);
       doc.text(instr, M, y + 2.4, { lineHeightFactor: 1.25 }); y += alturaLinhas(instr.length, 8.3, 1.25) + 3;
+      // texto-base / estudo de caso (igual para todos), na largura toda; pode ocupar mais de uma página
+      var pQ = pIni;
+      if (av.textoBase && String(av.textoBase.texto || '').trim()) {
+        var tb = av.textoBase, lh = 9.6 * PT * 1.35;
+        fonte(doc, 'bold', 10.5, NAVY); doc.text(san(tb.titulo || 'Texto-base'), M, y + 4); y += 7;
+        cor(doc, 'Draw', NAVY); doc.setLineWidth(0.6);
+        var ySeg = y;
+        String(tb.texto).replace(/\r/g, '').split(/\n/).forEach(function (par, ip) {
+          fonte(doc, 'normal', 9.6);
+          var ls = par.trim() ? doc.splitTextToSize(san(par.trim()), CW - 5) : [''];
+          ls.forEach(function (l) {
+            if (y + lh > FIM) { doc.line(M, ySeg, M, y); doc.addPage(); pQ = doc.getNumberOfPages(); y = M + 2; ySeg = y; fonte(doc, 'normal', 9.6); }
+            if (l) doc.text(l, M + 4, y + lh * 0.75); y += par.trim() ? lh : lh * 0.5;
+          });
+        });
+        cor(doc, 'Draw', NAVY); doc.setLineWidth(0.6); doc.line(M, ySeg, M, y);
+        if (tb.fonte) { fonte(doc, 'italic', 8, CINZA); var fs = doc.splitTextToSize(san(tb.fonte), CW - 5); if (y + fs.length * 3.6 > FIM) { doc.addPage(); pQ = doc.getNumberOfPages(); y = M + 2; } doc.text(fs, M + 4, y + 3); y += fs.length * 3.6 + 1; }
+        y += 4;
+      }
       // fluxo em duas colunas
       var blocos = al.questoes.map(function (qq, k) { return blocoQuestao(doc, k + 1, banco[qq.qid], qq.perm, valor, opcoes.mostrarTema, COL); });
       // discursivas: largura total da página, depois das objetivas
@@ -283,7 +328,7 @@
           if (yD + b.altura > FIM) { pgD++; yD = M + 2; }
           posD.push({ pag: pgD, y: yD }); yD += b.altura;
         });
-        pgFolha = yD <= topoFolha ? pgD : pgD + 1;
+        pgFolha = yD <= (n ? topoFolha : topoID) ? pgD : pgD + 1;
       } else {
       // a folha vai no rodapé da última página; se as questões da última página invadem a área da folha, redistribui com limite
       function cabeFolha(p, pg) { return p.every(function (o, k) { return o.pag < pg || o.y + blocos[k].altura <= topoFolha; }); }
@@ -304,21 +349,23 @@
       }
       }
       pos.forEach(function (o, k) {
-        while (doc.getNumberOfPages() < pIni + o.pag) doc.addPage();
-        doc.setPage(pIni + o.pag);
+        while (doc.getNumberOfPages() < pQ + o.pag) doc.addPage();
+        doc.setPage(pQ + o.pag);
         blocos[k].desenhar(M + o.col * (COL + GAP), o.y);
       });
       posD.forEach(function (o, k) {
-        while (doc.getNumberOfPages() < pIni + o.pag) doc.addPage();
-        doc.setPage(pIni + o.pag);
+        while (doc.getNumberOfPages() < pQ + o.pag) doc.addPage();
+        doc.setPage(pQ + o.pag);
         blD[k].desenhar(M, o.y);
       });
-      while (doc.getNumberOfPages() < pIni + pgFolha) doc.addPage();
-      doc.setPage(pIni + pgFolha);
-      cor(doc, 'Draw', CORAL); doc.setLineWidth(0.5); doc.line(M, topoFolha - 1.5, M + CW, topoFolha - 1.5);
-      fonte(doc, 'normal', 7.8, CINZA);
-      doc.text(san('Marque suas respostas na folha abaixo. Somente as marcações feitas nela serão consideradas.'), M, topoFolha + 3);
-      folha(doc, L, (PW - L.largura) / 2, oyFolha, al, av.id, n, [av.curso, titulo].filter(Boolean).join(' - '));
+      while (doc.getNumberOfPages() < pQ + pgFolha) doc.addPage();
+      doc.setPage(pQ + pgFolha);
+      if (n) {
+        cor(doc, 'Draw', CORAL); doc.setLineWidth(0.5); doc.line(M, topoFolha - 1.5, M + CW, topoFolha - 1.5);
+        fonte(doc, 'normal', 7.8, CINZA);
+        doc.text(san('Marque suas respostas na folha abaixo. Somente as marcações feitas nela serão consideradas.'), M, topoFolha + 3);
+        folha(doc, L, (PW - L.largura) / 2, oyFolha, al, av.id, n, [av.curso, titulo].filter(Boolean).join(' - '));
+      } else quadroCorrecao(doc, al, av, discs.length);
       if (av.config.frenteVerso && (doc.getNumberOfPages() - pIni + 1) % 2 === 1) doc.addPage();
       var pFim = doc.getNumberOfPages(), tot = pFim - pIni + 1;
       for (var p = pIni; p <= pFim; p++) { doc.setPage(p); rodape(doc, ((al.extra ? 'Prova extra (aluno fora da lista)' : al.nome) + ' · ' + al.codigo), p - pIni + 1, tot); }

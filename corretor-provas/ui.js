@@ -17,6 +17,7 @@ function render(){
   if(abaAtual === 'aval') editando && a ? renderEditor() : renderLista();
   if(abaAtual === 'corrigir') renderCorrigir();
   if(abaAtual === 'turma') renderTurma();
+  if(abaAtual === 'admin') renderAdmin();
 }
 
 // =================== painel inicial ===================
@@ -40,7 +41,7 @@ function renderInicio(){
   if(!lista.length){
     h += '<div class="card"><h2>Comece por aqui</h2><ol class="passos"><li>Crie uma avaliação com curso, disciplina e data.</li><li>Envie o banco de questões e a lista de alunos.</li>' +
          '<li>Gere as provas: cada aluno recebe uma prova diferente, já com o cabeçalho da UNIFADAP.</li><li>Depois da prova, corrija as folhas pela câmera do celular.</li></ol>' +
-         '<div class="stack" style="margin-top:12px"><button class="btn acc" onclick="novaDoPainel()">+ Nova avaliação</button><button class="btn sec" onclick="carregarDemo()">Ver um exemplo pronto</button></div></div>' +
+         '<div class="stack" style="margin-top:12px"><button class="btn acc" onclick="novaDoPainel()">+ Nova avaliação</button><button class="btn sec" onclick="carregarDemo()">Ver um exemplo pronto</button>' + botaoInstalar('btn sec') + '</div></div>' +
          '<p class="lbl" style="margin-top:6px;text-align:center;opacity:.7">Versão ' + VERSAO_APP + '</p>';
     $('#v-inicio').innerHTML = h; return;
   }
@@ -53,6 +54,8 @@ function renderInicio(){
     '<div class="kp"><span class="lbl">Falta corrigir</span><b' + (nGer - nCor ? ' style="color:var(--acc)"' : '') + '>' + (nGer - nCor) + '</b></div></div>';
   h += '<div class="row" style="margin:4px 0 14px"><button class="btn acc" onclick="novaDoPainel()">+ Nova avaliação</button>' +
        '<button class="btn" onclick="irCorrigir()">Corrigir provas</button></div>';
+  if(sessao && sessao.usuario.papel === 'admin') h += '<div class="card avcard" onclick="adminLista=null;aba(\'admin\')"><div class="row" style="align-items:center"><div style="flex:1"><b>Administração</b><div class="lbl">Professores, liberação de acesso e uso do app</div></div><span class="lbl">›</span></div></div>';
+  if(botaoInstalar()) h += '<div style="margin:-4px 0 14px">' + botaoInstalar('btn sec') + '</div>';
   // próximas provas
   const prox = lista.filter(a => a.data && a.data >= hoje).sort((x, y) => x.data.localeCompare(y.data));
   if(prox.length){
@@ -95,7 +98,7 @@ function renderInicio(){
     h += '<h3 class="sec">Rascunhos</h3>';
     semData.forEach(a => { h += '<div class="card avcard" onclick="abrirAv(\'' + a.id + '\')"><b>' + nomeAv(a) + '</b><div class="lbl">' + subAv(a) + ' · sem data</div></div>'; });
   }
-  h += '<p class="lbl" style="margin-top:14px;text-align:center">Os dados ficam só neste aparelho. Use "Exportar backup" em cada avaliação para passar para outro.</p>' +
+  h += '<p class="lbl" style="margin-top:14px;text-align:center">' + (sessao ? '<span id="syncInfo">' + textoSync() + '</span> · as suas avaliações aparecem em qualquer aparelho em que você entrar.' : 'Os dados ficam só neste aparelho. Use "Exportar backup" em cada avaliação para passar para outro.') + '</p>' +
        '<p class="lbl" style="margin-top:6px;text-align:center;opacity:.7">Versão ' + VERSAO_APP + '</p>';
   $('#v-inicio').innerHTML = h;
 }
@@ -155,9 +158,9 @@ function renderEditor(){
     '<div class="row"><label class="campo"><span>Data</span><input type="date" value="' + esc(a.data) + '" onchange="setAv(\'data\', this.value)"></label>' +
     '<label class="campo"><span>Valor de cada objetiva (pontos)</span><input type="text" inputmode="decimal" value="' + fmt(a.config.vObj) + '" onchange="setValor(\'vObj\', this.value)"></label></div>' +
     '<label class="campo"><span>Questões objetivas por prova</span><select onchange="setCfg(\'n\', +this.value)">' +
-    Array.from({length: 10}, (_, i) => '<option' + (i + 1 === n ? ' selected' : '') + '>' + (i + 1) + '</option>').join('') + '</select></label>' +
+    Array.from({length: 11}, (_, i) => '<option value="' + i + '"' + (i === n ? ' selected' : '') + '>' + (i ? i : 'Nenhuma (só dissertativas)') + '</option>').join('') + '</select></label>' +
     '<label class="campo"><span>Questões discursivas por prova</span><select onchange="setCfg(\'nd\', +this.value)">' +
-    Array.from({length: 6}, (_, i) => '<option value="' + i + '"' + (i === (+a.config.nd || 0) ? ' selected' : '') + '>' + (i ? i : 'Nenhuma') + '</option>').join('') + '</select></label>' +
+    Array.from({length: 11}, (_, i) => '<option value="' + i + '"' + (i === (+a.config.nd || 0) ? ' selected' : '') + '>' + (i ? i : 'Nenhuma') + '</option>').join('') + '</select></label>' +
     ((+a.config.nd || 0) ? '<div class="row"><label class="campo"><span>Valor de cada discursiva (pontos)</span><input type="text" inputmode="decimal" value="' + fmt(a.config.vDisc) + '" onchange="setValor(\'vDisc\', this.value)"></label>' +
       '<label class="campo"><span>Linhas para resposta</span><select onchange="setCfg(\'linhas\', +this.value)">' + [3, 4, 5, 6, 8, 10, 12, 15].map(x => '<option' + (x === (+a.config.linhas || 6) ? ' selected' : '') + '>' + x + '</option>').join('') + '</select></label></div>' : '') +
     (() => { const V = valores(a); return '<div class="alerta" style="background:var(--bg);color:var(--ink)">Valor total da prova: <b>' + fmt(V.total) + ' pontos</b><br><span class="lbl">' + V.nObj + ' objetiva' + (V.nObj > 1 ? 's' : '') + ' × ' + fmt(V.vq) +
@@ -175,6 +178,13 @@ function renderEditor(){
     '<div class="row" style="margin-top:10px">' +
     (a.cabecalho ? '<button class="btn sec" onclick="setAv(\'cabecalho\', null)">Voltar ao padrão UNIFADAP</button><button class="btn sec" onclick="$(\'#arqCab\').click()">Trocar</button>'
      : '<button class="btn sec" onclick="$(\'#arqCab\').click()">Usar outro cabeçalho (imagem ou PDF)</button>') + '</div></div>';
+  // texto-base / estudo de caso (opcional)
+  const tb = a.textoBase || {};
+  h += '<div class="card"><h2>Texto-base ou estudo de caso <span class="lbl">(opcional)</span></h2>' +
+    '<p class="lbl">Sai na prova de todos os alunos, depois das instruções e antes das questões, na largura toda da página.</p>' +
+    '<label class="campo"><span>Título</span><input type="text" value="' + esc(tb.titulo || '') + '" placeholder="Ex.: Estudo de caso – A crise da empresa X" onchange="setTexto(\'titulo\', this.value)"></label>' +
+    '<label class="campo"><span>Texto</span><textarea rows="' + (tb.texto ? 8 : 4) + '" placeholder="Cole aqui o texto do caso. Deixe uma linha em branco entre os parágrafos." onchange="setTexto(\'texto\', this.value)">' + esc(tb.texto || '') + '</textarea></label>' +
+    '<label class="campo"><span>Fonte (opcional)</span><input type="text" value="' + esc(tb.fonte || '') + '" placeholder="Ex.: Adaptado de Porter (1986), p. 22." onchange="setTexto(\'fonte\', this.value)"></label></div>';
   // 3. banco
   h += '<div class="card"><div class="passo">3</div><h2>Banco de questões</h2>' +
     (a.banco.length ? '<p><b>' + objetivas(a).length + ' objetivas' + (discursivas(a).length ? ' e ' + discursivas(a).length + ' discursivas' : '') + '</b> em ' + Object.keys(temas).length + ' tema(s):</p><ul class="temas">' +
@@ -182,7 +192,11 @@ function renderEditor(){
      : '<p class="muted">Preencha a planilha modelo (uma questão por linha) e envie aqui. Aceita Excel (.xlsx) ou CSV.</p>') +
     '<div class="row" style="margin-top:10px"><button class="btn sec" onclick="baixarModeloBanco()">Baixar planilha modelo</button>' +
     '<button class="btn sec" onclick="$(\'#arqBanco\').click()">' + (a.banco.length ? 'Substituir banco' : 'Enviar planilha') + '</button></div>' +
-    (a.banco.length ? '<button class="link" style="margin-top:8px" onclick="verBanco()">Ver questões do banco</button>' : '') + '</div>';
+    (a.banco.length ? '<button class="link" style="margin-top:8px" onclick="verBanco()">Ver questões do banco</button>' : '') +
+    '<details style="margin-top:12px"' + (a.banco.length ? '' : ' open') + '><summary><b>Colar questões dissertativas prontas</b></summary>' +
+    '<p class="lbl" style="margin-top:6px">Cole as questões da sua prova (de um Word, por exemplo), numeradas: "1.", "2)", "Questão 3"… O app formata cada uma no padrão, com linhas para resposta.</p>' +
+    '<textarea id="txtQuestoes" rows="6" placeholder="1. Com base no caso, explique...&#10;&#10;2. Segundo Porter (1986), ..."></textarea>' +
+    '<div class="row" style="margin-top:8px"><button class="btn sec" onclick="colarQuestoes()">Adicionar ao banco</button></div></details></div>';
   // 4. alunos
   h += '<div class="card"><div class="passo">4</div><h2>Alunos</h2>' +
     (a.alunos.length ? '<p><b>' + a.alunos.length + ' alunos</b> na lista.</p><details><summary class="lbl">Ver lista</summary><ol class="alunos">' +
@@ -192,12 +206,13 @@ function renderEditor(){
     '<div class="row" style="margin-top:8px"><button class="btn sec" onclick="usarListaColada()">Usar lista colada</button>' +
     '<button class="btn sec" onclick="$(\'#arqAlunos\').click()">Enviar planilha</button></div></div>';
   // 5. provas
-  const pronto = objetivas(a).length && a.alunos.length;
+  const ndq2 = Math.min(+a.config.nd || 0, discursivas(a).length), pronto = a.alunos.length && ((n > 0 && objetivas(a).length) || ndq2 > 0);
   h += '<div class="card"><div class="passo">5</div><h2>Provas</h2>';
   if(imp) h += '<p class="muted">Avaliação importada de um arquivo de gabaritos: ' + g.length + ' provas prontas para correção.</p>';
   else if(!pronto) h += '<p class="muted">Complete o banco de questões e a lista de alunos para gerar as provas.</p>';
   else {
-    h += '<p>' + a.alunos.length + ' provas (+ 1 extra em branco, para aluno fora da lista) com ' + Math.min(n, nObjB) + ' objetivas' + (ndq ? ' e ' + ndq + ' discursiva' + (ndq > 1 ? 's' : '') : '') + ' cada, sorteadas de ' + nObjB + ' objetivas' + (ndq ? ' e ' + discursivas(a).length + ' discursivas' : '') + ' (' +
+    if(!n) h += '<p>' + a.alunos.length + ' provas (+ 1 extra em branco) só com ' + ndq + ' questão(ões) dissertativa(s)' + (discursivas(a).length > ndq ? ', sorteadas de ' + discursivas(a).length : '') + '. No final de cada prova sai um quadro de correção com código: na hora de corrigir, fotografe o quadro e digite a nota de cada questão.</p>';
+    else h += '<p>' + a.alunos.length + ' provas (+ 1 extra em branco, para aluno fora da lista) com ' + Math.min(n, nObjB) + ' objetivas' + (ndq ? ' e ' + ndq + ' discursiva' + (ndq > 1 ? 's' : '') : '') + ' cada, sorteadas de ' + nObjB + ' objetivas' + (ndq ? ' e ' + discursivas(a).length + ' discursivas' : '') + ' (' +
          (comb >= a.alunos.length ? 'todas as combinações diferentes' : 'só há ' + comb + ' combinações possíveis: algumas provas vão repetir questões, mas com alternativas embaralhadas') + ').</p>' +
          (n > nObjB ? '<div class="alerta">O banco tem menos questões objetivas que o número por prova.</div>' : '') +
          ((+a.config.nd || 0) > discursivas(a).length ? '<div class="alerta">O banco tem ' + discursivas(a).length + ' discursiva(s); a prova vai usar só essas.</div>' : '');
@@ -238,6 +253,30 @@ function setCfg(k, v){
   a.config[k] = v;
   atualizarValores(a); recalcularNotas(a);
   salvarDB(); render();
+}
+function setTexto(k, v){ const a = av(); a.textoBase = a.textoBase || {}; a.textoBase[k] = v; salvarDB(); }
+// "1. ...", "2) ...", "Questão 3 - ..." viram questões dissertativas no banco
+function colarQuestoes(){
+  const a = av(), txt = ($('#txtQuestoes').value || '').replace(/\r/g, '').trim();
+  if(!txt) return toast('Cole as questões no campo');
+  const re = /^\s*(?:quest[aã]o\s*)?(\d{1,3})\s*(?:[).:\-–—]|\s-)\s*/i;
+  let partes = [], atualQ = null;
+  txt.split('\n').forEach(l => {
+    if(re.test(l)){ if(atualQ) partes.push(atualQ); atualQ = l.replace(re, ''); }
+    else if(atualQ !== null) atualQ += '\n' + l;
+    else atualQ = l;
+  });
+  if(atualQ) partes.push(atualQ);
+  if(partes.length < 2 && !re.test(txt.split('\n')[0])) partes = txt.split(/\n\s*\n/);
+  partes = partes.map(p => p.split('\n').map(x => x.trim()).filter(Boolean).join(' ').trim()).filter(p => p.length > 3);
+  if(!partes.length) return toast('Não encontrei questões no texto');
+  if(a.gerado && !alteraGerado()) return;
+  let nD = discursivas(a).length;
+  partes.forEach(p => a.banco.push({id: 'D' + String(++nD).padStart(2, '0'), tipo: 'D', tema: 'Geral', nivel: '', enunciado: p, alts: [], correta: -1, comentario: ''}));
+  if(!(+a.config.nd)) a.config.nd = Math.min(partes.length, 10);
+  if(!objetivas(a).length) a.config.n = 0;
+  atualizarValores(a); salvarDB(); render();
+  toast(partes.length + (partes.length > 1 ? ' questões adicionadas' : ' questão adicionada'));
 }
 function setValor(k, v){
   const a = av(), x = +String(v).replace(',', '.').trim();
@@ -322,7 +361,7 @@ function exportarBackup(){
 function excluirAv(){
   const a = av();
   if(!confirm('Excluir "' + (a.titulo || 'Avaliação') + '" com banco, alunos, provas e correções deste aparelho?')) return;
-  delete db.avaliacoes[a.id]; db.ativa = null; editando = false; salvarDB(); render();
+  delete db.avaliacoes[a.id]; (db._excluir = db._excluir || []).push(a.id); db.ativa = null; editando = false; salvarDB(); render();
 }
 function lerArquivoGab(inp){
   const f = inp.files[0]; inp.value = ''; if(!f) return;
@@ -408,8 +447,9 @@ function filtrarTurma(){
       li.innerHTML = '<div class="nome"><b></b><span class="lbl"></span></div>' + (r ? (r.faltaDisc ? '<span class="pill warn">falta discursiva</span> ' : '') + (r.pendencias ? '<span class="pill warn">' + r.pendencias + ' p/ conferir</span> ' : '') +
         '<span class="nota">' + fmt(r.nota) + '</span>' : '<span class="pill">pendente</span>');
       li.querySelector('b').textContent = al.nome;
-      li.querySelector('.lbl').textContent = 'RA ' + (al.ra || '–') + ' · ' + al.codigo + (r ? ' · ' + r.acertos + '/' + r.n + ' acertos' : '');
-      li.onclick = () => r ? mostrarResultado({aluno: al, marcadas: r.marcadas.slice(), status: r.status.slice(), disc: r.disc ? r.disc.slice() : undefined, salvo: true}) : toast('Ainda não corrigida');
+      li.querySelector('.lbl').textContent = 'RA ' + (al.ra || '–') + ' · ' + al.codigo + (r && r.n ? ' · ' + r.acertos + '/' + r.n + ' acertos' : '');
+      li.onclick = () => r ? mostrarResultado({aluno: al, marcadas: r.marcadas.slice(), status: r.status.slice(), disc: r.disc ? r.disc.slice() : undefined, salvo: true})
+        : !al.gabarito.length ? mostrarResultado({aluno: al, marcadas: [], status: [], salvo: false}) : toast('Ainda não corrigida');
       ul.appendChild(li);
     });
 }
@@ -435,6 +475,15 @@ function imagemDeFonte(src, w, h, max){
   const c = document.createElement('canvas'); c.width = cw; c.height = ch;
   const ctx = c.getContext('2d', {willReadFrequently: true}); ctx.drawImage(src, 0, 0, cw, ch);
   return {canvas: c, img: ctx.getImageData(0, 0, cw, ch)};
+}
+// prova só com dissertativas: o QR "DISC|avaliação|código|nº" identifica o aluno (não há bolhas)
+function analisarFolha(img, op){
+  const r = OMR.analisar(img, LAYOUTS, op);
+  if(!r.ok && r.erro === 'qr-formato' && /^DISC\|/.test(r.texto || '')){
+    const p = r.texto.split('|');
+    return {ok: true, qr: {versao: 'DISC', prova: p[1], codigo: p[2], n: 0}, respostas: [], debug: {cantos: [], bolhas: []}};
+  }
+  return r;
 }
 function interpretar(r){
   if(!r.ok){
@@ -485,7 +534,7 @@ function loop(){
   const v = $('#video');
   if(v.readyState < 2){ setTimeout(loop, 150); return; }
   const fw = v.videoWidth, fh = v.videoHeight, {img} = imagemDeFonte(v, fw, fh, 1280);
-  let r; try { r = OMR.analisar(img, LAYOUTS, {escalasQR: [1, 0.6]}); } catch(e){ r = {ok: false, erro: 'qr'}; }
+  let r; try { r = analisarFolha(img, {escalasQR: [1, 0.6]}); } catch(e){ r = {ok: false, erro: 'qr'}; }
   const k = img.width / fw;
   if(r.ok) r.debug.cantos = r.debug.cantos.map(c => [c[0] / k, c[1] / k]);
   desenharOverlay(r, fw, fh);
@@ -498,7 +547,7 @@ function loop(){
     const snap = imagemDeFonte(v, fw, fh, 1000).canvas;
     if(navigator.vibrate) navigator.vibrate(60);
     fecharCamera();
-    const r2 = OMR.analisar(snap.getContext('2d').getImageData(0, 0, snap.width, snap.height), LAYOUTS, {escalasQR: [1, 0.6, 0.4]});
+    const r2 = analisarFolha(snap.getContext('2d').getImageData(0, 0, snap.width, snap.height), {escalasQR: [1, 0.6, 0.4]});
     const it2 = r2.ok ? interpretar(r2) : it;
     mostrarResultado(Object.assign({}, it2.erro ? it : it2, {snap, debug: r2.ok ? r2.debug : null}));
     return;
@@ -512,7 +561,7 @@ function lerFoto(inp){
     URL.revokeObjectURL(url); let melhor = null;
     for(const max of [1600, 2200, 1100]){
       const {canvas, img} = imagemDeFonte(im, im.naturalWidth, im.naturalHeight, max);
-      const r = OMR.analisar(img, LAYOUTS, {escalasQR: [1, 0.6, 0.4], inverter: true}), it = interpretar(r);
+      const r = analisarFolha(img, {escalasQR: [1, 0.6, 0.4], inverter: true}), it = interpretar(r);
       if(!it.erro){ mostrarResultado(Object.assign(it, {snap: canvas, debug: r.debug})); return; }
       melhor = melhor || it.erro;
     }
@@ -542,14 +591,15 @@ function mostrarResultado(it){
   $('#resConteudo').innerHTML =
     '<div class="card"><div class="lbl">' + esc(al.codigo) + ' · RA ' + esc(al.ra || '–') + ' · ' + esc([a.disciplina, a.titulo].filter(Boolean).join(' · ')) + '</div>' + (al.extra ? '<div class="alerta">Prova extra (aluno fora da lista). Digite o nome do aluno:</div><input type="text" style="margin-top:8px" value="' + (al.nome === 'ALUNO(A) NÃO LISTADO(A)' ? '' : esc(al.nome)) + '" placeholder="Nome do aluno" onchange="atual.aluno.nome = this.value.trim().toUpperCase() || \'ALUNO(A) NÃO LISTADO(A)\'; salvarDB()">' : '<h2 style="font-size:20px">' + esc(al.nome) + '</h2>') +
     '<div class="row" style="margin-top:8px;align-items:flex-end"><div><div class="lbl">Nota</div><div class="big">' + fmt(calc.nota) + '</div></div>' +
-    '<div><div class="lbl">Acertos' + (V.nd ? ' (objetivas)' : '') + '</div><div class="big" style="font-size:28px">' + calc.acertos + '/' + n + '</div></div></div>' +
-    (V.nd ? '<p class="lbl" style="margin-top:6px">Objetivas ' + fmt(calc.notaObj) + ' + discursivas ' + fmt(calc.notaDisc) + '</p>' +
+    (n ? '<div><div class="lbl">Acertos' + (V.nd ? ' (objetivas)' : '') + '</div><div class="big" style="font-size:28px">' + calc.acertos + '/' + n + '</div></div>' : '') + '</div>' +
+    (V.nd && !n && calc.faltaDisc ? '<div class="alerta">Falta lançar a nota de ' + calc.faltaDisc + ' questão(ões) (mais abaixo).</div>' : '') +
+    (V.nd && n ? '<p class="lbl" style="margin-top:6px">Objetivas ' + fmt(calc.notaObj) + ' + discursivas ' + fmt(calc.notaDisc) + '</p>' +
       (calc.faltaDisc ? '<div class="alerta">Falta lançar a nota de ' + calc.faltaDisc + ' discursiva' + (calc.faltaDisc > 1 ? 's' : '') + ' (mais abaixo).</div>' : '') : '') +
     (pend ? '<div class="alerta">' + pend + (pend > 1 ? ' questões precisam' : ' questão precisa') + ' de conferência. Toque na resposta para corrigir.</div>' : '') +
     (ja && !it.salvo ? '<div class="alerta bad">Esta prova já foi corrigida (nota ' + fmt(ja.nota) + '). Salvar vai substituir.</div>' : '') + '</div>' +
-    '<div class="card"><table class="qgrid"><tr><th>Questão</th><th>Marcada</th><th>Gabarito</th><th></th></tr>' + linhas + '</table>' +
-    '<p class="lbl" style="margin-top:8px">Questão em branco ou com dupla marcação conta como errada, a menos que você escolha a resposta.</p></div>' +
-    (V.nd ? '<div class="card"><h2>Questões discursivas</h2><p class="lbl">Leia as respostas na prova do aluno e digite a nota de cada uma (de 0 a ' + fmt(V.vdq) + ').</p>' +
+    (n ? '<div class="card"><table class="qgrid"><tr><th>Questão</th><th>Marcada</th><th>Gabarito</th><th></th></tr>' + linhas + '</table>' +
+    '<p class="lbl" style="margin-top:8px">Questão em branco ou com dupla marcação conta como errada, a menos que você escolha a resposta.</p></div>' : '') +
+    (V.nd ? '<div class="card"><h2>' + (n ? 'Questões discursivas' : 'Notas das questões') + '</h2><p class="lbl">Leia as respostas na prova do aluno e digite a nota de cada uma (de 0 a ' + fmt(V.vdq) + ').</p>' +
       (al.disc || []).map((id, k) => '<label class="campo"><span>Questão ' + (n + k + 1) + ' · ref. ' + esc(id) + ' (vale ' + fmt(V.vdq) + ')</span><input type="text" inputmode="decimal" value="' + (it.disc[k] == null ? '' : it.disc[k]) + '" placeholder="nota" onchange="notaDisc(' + k + ', this.value)"></label>').join('') + '</div>' : '') +
     '<div class="card" id="cardSnap" style="display:none"><div class="lbl">Imagem lida</div><canvas class="snap" id="snap"></canvas></div>' +
     '<div class="stack">' +
@@ -609,4 +659,4 @@ function fecharRes(lerDeNovo){ $('#res').classList.remove('on'); if(lerDeNovo) a
 
 let tt = null;
 function toast(m){ const t = $('#toast'); t.textContent = m; t.classList.add('on'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('on'), 2600); }
-carregarDB().then(() => { aba('inicio'); });
+iniciarApp();

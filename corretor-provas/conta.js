@@ -24,7 +24,8 @@ function guardarSessao(s){ sessao = s; try { s ? localStorage.setItem('cp:sessao
 // ------------------------------------------------------------ início
 async function iniciarApp(){
   registrarSW();
-  if(MODO_LOCAL){ DB_CHAVE = 'db'; entradaLocal(async () => { await carregarDB(); aba('inicio'); }); return; }
+  if(typeof checarMudanca === 'function' && await checarMudanca()) return; // endereço antigo sem dados: vai para o SimulaPro
+  if(MODO_LOCAL){ DB_CHAVE = 'db'; entradaLocal(async () => { await carregarDB(); aba('inicio'); if(typeof aposAbrirMudanca === 'function') aposAbrirMudanca(); }); return; }
   try { sessao = JSON.parse(localStorage.getItem('cp:sessao') || 'null'); } catch(e){ sessao = null; }
   if(!sessao){ await telaInicial(); return; }
   await abrirConta();

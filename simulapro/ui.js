@@ -42,7 +42,7 @@ function renderInicio(){
   if(!lista.length){
     h += '<div class="card"><h2>Comece por aqui</h2><ol class="passos"><li>Cadastre suas turmas (a lista de alunos fica salva para as próximas provas).</li><li>Crie uma avaliação com curso, disciplina e data.</li><li>Envie o banco de questões e escolha a turma.</li>' +
          '<li>Gere as provas: cada aluno recebe uma prova diferente, já com o cabeçalho da instituição (o da UNIFADAP vem pronto; outro pode ser enviado uma vez só).</li><li>Depois da prova, corrija as folhas pela câmera do celular.</li></ol>' +
-         '<div class="stack" style="margin-top:12px"><button class="btn acc" onclick="novaDoPainel()">+ Nova avaliação</button><button class="btn sec" onclick="carregarDemo()">Ver um exemplo pronto</button>' + botaoInstalar('btn sec') + '</div></div>' + blocoTurmas() + blocoTrilhas() + blocoCabecalho() +
+         '<div class="stack" style="margin-top:12px"><button class="btn acc" onclick="novaDoPainel()">+ Nova avaliação</button><button class="btn sec" onclick="novoSimulado()">+ Novo simulado ENADE</button><button class="btn sec" onclick="carregarDemo()">Ver um exemplo pronto</button>' + botaoInstalar('btn sec') + '</div></div>' + blocoTurmas() + blocoTrilhas() + blocoCabecalho() +
          '<p class="lbl" style="margin-top:6px;text-align:center;opacity:.7">Versão ' + VERSAO_APP + '</p>';
     $('#v-inicio').innerHTML = h; return;
   }
@@ -54,6 +54,7 @@ function renderInicio(){
     '<div class="kp"><span class="lbl">Corrigidas</span><b>' + nCor + '</b></div>' +
     '<div class="kp"><span class="lbl">Falta corrigir</span><b' + (nGer - nCor ? ' style="color:var(--acc)"' : '') + '>' + (nGer - nCor) + '</b></div></div>';
   h += '<div class="row" style="margin:4px 0 14px"><button class="btn acc" onclick="novaDoPainel()">+ Nova avaliação</button>' +
+       '<button class="btn sec" onclick="novoSimulado()">+ Simulado ENADE</button>' +
        '<button class="btn" onclick="irCorrigir()">Corrigir provas</button></div>';
   if(sessao && sessao.usuario.papel === 'admin') h += '<div class="card avcard" onclick="adminLista=null;aba(\'admin\')"><div class="row" style="align-items:center"><div style="flex:1"><b>Administração</b><div class="lbl">Professores, liberação de acesso e uso do app</div></div><span class="lbl">›</span></div></div>';
   if(botaoInstalar()) h += '<div style="margin:-4px 0 14px">' + botaoInstalar('btn sec') + '</div>';
@@ -117,7 +118,7 @@ function renderLista(){
   const lista = Object.values(db.avaliacoes);
   const grupos = {};
   lista.forEach(a => { const k = (a.curso || 'Sem curso') + '\u0000' + (a.disciplina || 'Sem disciplina'); (grupos[k] = grupos[k] || []).push(a); });
-  let h = '<div class="stack" style="margin-bottom:14px"><button class="btn acc" onclick="criar()">+ Nova avaliação</button></div>';
+  let h = '<div class="stack" style="margin-bottom:14px"><button class="btn acc" onclick="criar()">+ Nova avaliação</button><button class="btn sec" onclick="novoSimulado()">+ Novo simulado ENADE</button></div>';
   if(!lista.length){
     h += '<div class="card"><h2>Nenhuma avaliação ainda</h2><p class="muted">Crie uma avaliação, envie o banco de questões e a lista de alunos (o cabeçalho da UNIFADAP já vem pronto), e o app gera uma prova diferente para cada aluno, com folha de respostas para correção pela câmera.</p>' +
          '<div class="stack" style="margin-top:12px"><button class="btn sec" onclick="carregarDemo()">Ver um exemplo pronto</button></div></div>';
@@ -140,6 +141,31 @@ function renderLista(){
   $('#v-aval').innerHTML = h;
 }
 function criar(){ novaAvaliacao(); editando = true; render(); }
+// simulado no formato do ENADE (Formação Geral + Componente Específico, nota de 0 a 100)
+function virarEnade(a){
+  a.modelo = 'enade'; a.config.enade = a.config.enade || 100; a.config.linhas = a.config.linhas && a.config.linhas !== 6 ? a.config.linhas : 10;
+  if(!a.titulo || a.titulo === 'Avaliação') a.titulo = 'Simulado ENADE';
+  if(!a.chamada) a.chamada = 'Simulado';
+  atualizarValores(a);
+}
+function novoSimulado(){ const a = novaAvaliacao(); virarEnade(a); salvarDB(); editando = true; aba('aval'); }
+function setModelo(v){
+  const a = av(); if(v === (a.modelo || 'prova')) return;
+  if(a.gerado && !alteraGerado()) return render();
+  if(v === 'enade') virarEnade(a); else { delete a.modelo; if(a.titulo === 'Simulado ENADE') a.titulo = 'Avaliação'; if(a.chamada === 'Simulado') a.chamada = ''; atualizarValores(a); }
+  salvarDB(); render();
+}
+// passo 1 do simulado ENADE: tamanho (100% ou 50%), estrutura e pesos
+function camposEnade(a){
+  const t = tamEnade(a), E = ENADE_ESTR[t], tot = E.FG.o + E.FG.d + E.CE.o + E.CE.d;
+  return '<label class="campo"><span>Tamanho do simulado</span><select onchange="setCfg(\'enade\', +this.value)">' +
+    '<option value="100"' + (t === 100 ? ' selected' : '') + '>Prova completa (100%): 40 questões</option>' +
+    '<option value="50"' + (t === 50 ? ' selected' : '') + '>Meia prova (50%): 20 questões</option></select></label>' +
+    '<div class="alerta" style="background:var(--bg);color:var(--ink)"><b>' + tot + ' questões por aluno</b>, como no ENADE:<br>' +
+    '<span class="lbl">Formação Geral: ' + E.FG.o + ' objetivas + ' + E.FG.d + ' discursiva' + (E.FG.d > 1 ? 's' : '') + '<br>Componente Específico: ' + E.CE.o + ' objetivas + ' + E.CE.d + ' discursivas<br>' +
+    'Nota de 0 a 100: Formação Geral vale 25% e Específico 75%. As objetivas são corrigidas pela câmera ou por PDF escaneado (cartão-resposta na última folha); cada discursiva recebe nota de 0 a 10.</span></div>' +
+    '<label class="campo"><span>Linhas para resposta das discursivas</span><select onchange="setCfg(\'linhas\', +this.value)">' + [5, 6, 8, 10, 12, 15, 20].map(x => '<option' + (x === (+a.config.linhas || 10) ? ' selected' : '') + '>' + x + '</option>').join('') + '</select></label>';
+}
 function abrir(id){ db.ativa = id; salvarDB(); editando = true; render(); window.scrollTo(0, 0); }
 function voltarLista(){ editando = false; render(); }
 
@@ -152,14 +178,16 @@ function renderEditor(){
   const imp = a.gerado && a.gerado.importado;
   let h = '<button class="link" onclick="voltarLista()">‹ Avaliações</button>';
   // 1. dados
-  h += '<div class="card"><div class="passo">1</div><h2>Dados da avaliação</h2>' +
+  const enade = ehEnade(a);
+  h += '<div class="card"><div class="passo">1</div><h2>Dados ' + (enade ? 'do simulado' : 'da avaliação') + '</h2>' +
+    '<label class="campo"><span>Tipo</span><select onchange="setModelo(this.value)"><option value="prova"' + (enade ? '' : ' selected') + '>Prova (bimestral, exame…)</option><option value="enade"' + (enade ? ' selected' : '') + '>Simulado ENADE</option></select></label>' +
     campo('Curso', 'curso', a.curso, 'Ex.: Direito') + campo('Disciplina', 'disciplina', a.disciplina, 'Ex.: Economia') +
     campo('Nome do(a) professor(a)', 'professor', a.professor || '', 'Ex.: Prof. Dr. Fulano de Tal') +
     campo('Título', 'titulo', a.titulo, 'Ex.: Prova da Unidade 6') +
     '<label class="campo"><span>Chamada</span><input type="text" list="chamadas" value="' + esc(a.chamada || '') + '" placeholder="Ex.: Primeira chamada" onchange="setAv(\'chamada\', this.value.trim())"></label>' +
-    '<datalist id="chamadas"><option>Primeira chamada</option><option>Segunda chamada</option><option>Exame</option><option>Recuperação</option></datalist>' +
+    '<datalist id="chamadas"><option>Simulado</option><option>Primeira chamada</option><option>Segunda chamada</option><option>Exame</option><option>Recuperação</option></datalist>' +
     '<div class="row"><label class="campo"><span>Data</span><input type="date" value="' + esc(a.data) + '" onchange="setAv(\'data\', this.value)"></label>' +
-    '<label class="campo"><span>Valor de cada objetiva (pontos)</span><input type="text" inputmode="decimal" value="' + fmt(a.config.vObj) + '" onchange="setValor(\'vObj\', this.value)"></label></div>' +
+    (enade ? '</div>' + camposEnade(a) : '<label class="campo"><span>Valor de cada objetiva (pontos)</span><input type="text" inputmode="decimal" value="' + fmt(a.config.vObj) + '" onchange="setValor(\'vObj\', this.value)"></label></div>' +
     '<label class="campo"><span>Questões objetivas por prova</span><select onchange="setCfg(\'n\', +this.value)">' +
     Array.from({length: 11}, (_, i) => '<option value="' + i + '"' + (i === n ? ' selected' : '') + '>' + (i ? i : 'Nenhuma (só dissertativas)') + '</option>').join('') + '</select></label>' +
     '<label class="campo"><span>Questões discursivas por prova</span><select onchange="setCfg(\'nd\', +this.value)">' +
@@ -167,7 +195,7 @@ function renderEditor(){
     ((+a.config.nd || 0) ? '<div class="row"><label class="campo"><span>Valor de cada discursiva (pontos)</span><input type="text" inputmode="decimal" value="' + fmt(a.config.vDisc) + '" onchange="setValor(\'vDisc\', this.value)"></label>' +
       '<label class="campo"><span>Linhas para resposta</span><select onchange="setCfg(\'linhas\', +this.value)">' + [3, 4, 5, 6, 8, 10, 12, 15].map(x => '<option' + (x === (+a.config.linhas || 6) ? ' selected' : '') + '>' + x + '</option>').join('') + '</select></label></div>' : '') +
     (() => { const V = valores(a); return '<div class="alerta" style="background:var(--bg);color:var(--ink)">Valor total da prova: <b>' + fmt(V.total) + ' pontos</b><br><span class="lbl">' + V.nObj + ' objetiva' + (V.nObj > 1 ? 's' : '') + ' × ' + fmt(V.vq) +
-      (V.nd ? ' + ' + V.nd + ' discursiva' + (V.nd > 1 ? 's' : '') + ' × ' + fmt(V.vdq) : '') + '. As objetivas são corrigidas pela câmera' + (V.nd ? '; a nota das discursivas você lança na correção' : '') + '.</span></div>'; })() +
+      (V.nd ? ' + ' + V.nd + ' discursiva' + (V.nd > 1 ? 's' : '') + ' × ' + fmt(V.vdq) : '') + '. As objetivas são corrigidas pela câmera' + (V.nd ? '; a nota das discursivas você lança na correção' : '') + '.</span></div>'; })()) +
     check('embaralharQuestoes', 'Embaralhar a ordem das questões', a.config.embaralharQuestoes) +
     check('frenteVerso', 'Impressão frente e verso (cada prova com nº par de páginas)', a.config.frenteVerso) +
     check('mostrarTema', 'Mostrar o tema/aula ao lado do número da questão', a.config.mostrarTema) + '</div>';
@@ -189,11 +217,11 @@ function renderEditor(){
     '<label class="campo"><span>Texto</span><textarea rows="' + (tb.texto ? 8 : 4) + '" placeholder="Cole aqui o texto do caso. Deixe uma linha em branco entre os parágrafos." onchange="setTexto(\'texto\', this.value)">' + esc(tb.texto || '') + '</textarea></label>' +
     '<label class="campo"><span>Fonte (opcional)</span><input type="text" value="' + esc(tb.fonte || '') + '" placeholder="Ex.: Adaptado de Porter (1986), p. 22." onchange="setTexto(\'fonte\', this.value)"></label></div>';
   // 3. banco
-  h += '<div class="card"><div class="passo">3</div><h2>Banco de questões</h2>' +
+  h += '<div class="card"><div class="passo">3</div><h2>Banco de questões</h2>' + (enade ? resumoBancoEnade(a) : '') +
     (a.banco.length ? '<p><b>' + objetivas(a).length + ' objetivas' + (discursivas(a).length ? ' e ' + discursivas(a).length + ' discursivas' : '') + '</b> em ' + Object.keys(temas).length + ' tema(s):</p><ul class="temas">' +
        Object.entries(temas).map(([t, c]) => '<li><span>' + esc(t) + '</span><b>' + c + '</b></li>').join('') + '</ul>'
      : '<p class="muted">Preencha a planilha modelo (uma questão por linha) e envie aqui. Aceita Excel (.xlsx) ou CSV.</p>') +
-    '<div class="row" style="margin-top:10px"><button class="btn sec" onclick="baixarModeloBanco()">Baixar planilha modelo</button>' +
+    '<div class="row" style="margin-top:10px"><button class="btn sec" onclick="' + (enade ? 'baixarModeloEnade()' : 'baixarModeloBanco()') + '">Baixar planilha modelo' + (enade ? ' do simulado' : '') + '</button>' +
     '<button class="btn sec" onclick="$(\'#arqBanco\').click()">' + (a.banco.length ? 'Substituir banco' : 'Enviar planilha') + '</button></div>' +
     blocoImagensBanco(a) +
     (a.banco.length ? '<button class="link" style="margin-top:8px" onclick="verBanco()">Ver questões do banco</button>' : '') +
@@ -204,17 +232,20 @@ function renderEditor(){
   // 4. alunos (turma salva, lista avulsa ou exame sem nome)
   h += cartaoAlunos(a);
   // 5. provas
-  const ndq2 = Math.min(+a.config.nd || 0, discursivas(a).length), NP = nProvas(a), maisExtra = semNome(a) ? ' sem nome' : ' (+ 1 extra em branco, para aluno fora da lista)', pronto = NP && ((n > 0 && objetivas(a).length) || ndq2 > 0);
+  const ndq2 = Math.min(+a.config.nd || 0, discursivas(a).length), NP = nProvas(a), maisExtra = semNome(a) ? ' sem nome' : ' (+ 1 extra em branco, para aluno fora da lista)';
+  const EE = enade ? estruturaEnade(a) : null, pronto = NP && (enade ? (EE.FG.o + EE.CE.o + EE.FG.d + EE.CE.d) > 0 : ((n > 0 && objetivas(a).length) || ndq2 > 0));
   h += '<div class="card"><div class="passo">5</div><h2>Provas</h2>';
   if(imp) h += '<p class="muted">Avaliação importada de um arquivo de gabaritos: ' + g.length + ' provas prontas para correção.</p>';
   else if(!pronto) h += '<p class="muted">Complete o banco de questões e ' + (semNome(a) ? 'a quantidade de provas' : 'a lista de alunos') + ' para gerar as provas.</p>';
   else {
-    if(!n) h += '<p>' + NP + ' provas' + maisExtra + ' só com ' + ndq + ' questão(ões) dissertativa(s)' + (discursivas(a).length > ndq ? ', sorteadas de ' + discursivas(a).length : '') + '. No final de cada prova sai um quadro de correção com código: na hora de corrigir, fotografe o quadro e digite a nota de cada questão.</p>';
+    if(enade) h += '<p>' + NP + ' simulados' + maisExtra + ', cada um com ' + (EE.FG.o + EE.CE.o) + ' objetivas e ' + (EE.FG.d + EE.CE.d) + ' discursivas sorteadas do banco. O cartão-resposta sai numa folha separada, no final de cada caderno.</p>' +
+      (['FG', 'CE'].some(p => EE[p].o < EE[p].pedidoO || EE[p].d < EE[p].pedidoD) ? '<div class="alerta">O banco não tem questões suficientes em alguma parte (veja o passo 3): o simulado vai sair com menos questões.</div>' : '');
+    else if(!n) h += '<p>' + NP + ' provas' + maisExtra + ' só com ' + ndq + ' questão(ões) dissertativa(s)' + (discursivas(a).length > ndq ? ', sorteadas de ' + discursivas(a).length : '') + '. No final de cada prova sai um quadro de correção com código: na hora de corrigir, fotografe o quadro e digite a nota de cada questão.</p>';
     else h += '<p>' + NP + ' provas' + maisExtra + ' com ' + Math.min(n, nObjB) + ' objetivas' + (ndq ? ' e ' + ndq + ' discursiva' + (ndq > 1 ? 's' : '') : '') + ' cada, sorteadas de ' + nObjB + ' objetivas' + (ndq ? ' e ' + discursivas(a).length + ' discursivas' : '') + ' (' +
          (comb >= NP ? 'todas as combinações diferentes' : 'só há ' + comb + ' combinações possíveis: algumas provas vão repetir questões, mas com alternativas embaralhadas') + ').</p>' +
          (n > nObjB ? '<div class="alerta">O banco tem menos questões objetivas que o número por prova.</div>' : '') +
          ((+a.config.nd || 0) > discursivas(a).length ? '<div class="alerta">O banco tem ' + discursivas(a).length + ' discursiva(s); a prova vai usar só essas.</div>' : '');
-    h += '<div class="stack" style="margin-top:10px"><button class="btn acc" onclick="baixarProvas()">' + (totalProvas(a) ? 'Baixar provas (PDF)' : 'Gerar provas (PDF)') + '</button>';
+    h += '<div class="stack" style="margin-top:10px"><button class="btn acc" onclick="baixarProvas()">' + (totalProvas(a) ? (enade ? 'Baixar simulados (PDF)' : 'Baixar provas (PDF)') : (enade ? 'Gerar simulados (PDF)' : 'Gerar provas (PDF)')) + '</button>';
     if(totalProvas(a)) h += '<button class="btn sec" onclick="baixarGabarito()">Baixar gabarito do professor (PDF)</button>' +
                       '<button class="btn sec" onclick="sortearDeNovo()">Sortear as provas de novo</button>';
     h += '</div>';
@@ -224,7 +255,8 @@ function renderEditor(){
   // 6. correção e relatório
   if(totalProvas(a)) h += '<div class="card"><div class="passo">6</div><h2>Correção e relatório</h2><p>' + nRes + ' de ' + totalProvas(a) + ' provas corrigidas.</p>' +
     '<div class="stack" style="margin-top:10px"><button class="btn" onclick="corrigirAv(\'' + a.id + '\')">Corrigir provas</button>' +
-    '<button class="btn sec" onclick="baixarRelatorio()">Baixar relatório de notas (PDF)</button>' +
+    '<button class="btn sec" onclick="baixarRelatorio()">Baixar relatório ' + (enade ? 'do simulado' : 'de notas') + ' (PDF)</button>' +
+    (enade ? '<button class="btn sec" onclick="baixarBoletins()">Boletins individuais (PDF)</button>' : '') +
     '<button class="btn sec" onclick="exportarCSV()">Exportar notas (planilha)</button></div></div>';
   h += '<div class="card"><h2>Backup</h2><div class="stack" style="margin-top:8px"><button class="btn sec" onclick="exportarBackup()">Exportar backup (.json)</button>' +
        '<button class="btn sec" style="color:var(--bad)" onclick="excluirAv()">Excluir avaliação</button></div></div>';
@@ -249,7 +281,7 @@ function setAv(k, v){
 }
 function setCfg(k, v){
   const a = av();
-  if(['n', 'nd', 'embaralharQuestoes'].includes(k) && a.gerado && !alteraGerado()) return render();
+  if(['n', 'nd', 'embaralharQuestoes', 'enade'].includes(k) && a.gerado && !alteraGerado()) return render();
   a.config[k] = v;
   atualizarValores(a); recalcularNotas(a);
   salvarDB(); render();
@@ -403,7 +435,7 @@ function baixarProvas(){
     const doc = PDFGEN.gerarProvas(a, LAYOUTS, {mostrarTema: a.config.mostrarTema});
     baixarBlob(doc.output('blob'), 'provas_' + nomeArq(a.disciplina + '_' + a.titulo) + '.pdf'); render();
     const pp = doc.getNumberOfPages() / todosGerados(a).length;
-    if(pp > 2) setTimeout(() => alert('Atenção: cada prova ficou com ' + Math.ceil(pp) + ' páginas.' + ((+a.config.nd || 0) ? '\nPara caber em 2 páginas (frente e verso), diminua as linhas para resposta ou o número de questões.' : '')), 300);
+    if(pp > 2 && !ehEnade(a)) setTimeout(() => alert('Atenção: cada prova ficou com ' + Math.ceil(pp) + ' páginas.' + ((+a.config.nd || 0) ? '\nPara caber em 2 páginas (frente e verso), diminua as linhas para resposta ou o número de questões.' : '')), 300);
   });
 }
 function baixarGabarito(){
@@ -412,6 +444,19 @@ function baixarGabarito(){
 function baixarRelatorio(){
   if(!alunosGerados(av()).length) return toast('Nenhuma prova corrigida ainda');
   comProgresso('Gerando o relatório…', async () => { await pdfLibs(); const a = av(); baixarBlob(PDFGEN.gerarRelatorio(a).output('blob'), 'relatorio_' + nomeArq(a.disciplina + '_' + a.titulo) + '.pdf'); });
+}
+function baixarBoletins(){
+  if(!Object.keys(av().resultados || {}).length) return toast('Nenhuma prova corrigida ainda');
+  comProgresso('Gerando os boletins…', async () => { await pdfLibs(); const a = av(); baixarBlob(PDFGEN.gerarBoletins(a).output('blob'), 'boletins_' + nomeArq(a.disciplina + '_' + a.titulo) + '.pdf'); });
+}
+// passo 3 do simulado: quantas questões o banco tem em cada parte e quantas o simulado pede
+function resumoBancoEnade(a){
+  const E = estruturaEnade(a), lin = p => {
+    const e = E[p], falta = e.bancoO < e.pedidoO || e.bancoD < e.pedidoD;
+    return '<li><span>' + NOME_PARTE[p] + ': ' + e.bancoO + ' objetivas e ' + e.bancoD + ' discursivas no banco</span><b style="color:' + (falta ? 'var(--bad)' : 'var(--ok)') + '">pede ' + e.pedidoO + ' + ' + e.pedidoD + '</b></li>';
+  };
+  return '<p class="lbl">Na planilha, a coluna <b>Parte</b> diz se a questão é de Formação Geral ou Específico (sem ela, tudo conta como Específico). A coluna <b>Competência</b> alimenta o relatório.</p>' +
+    (a.banco.length ? '<ul class="temas" style="margin-bottom:10px">' + lin('FG') + lin('CE') + '</ul>' : '');
 }
 function sortearDeNovo(){
   const a = av(), nRes = Object.keys(a.resultados || {}).length;
@@ -524,11 +569,13 @@ function exportarCSV(){
   const a = av(); if(!a) return;
   if(!alunosGerados(a).length) return toast('Nenhuma prova corrigida ainda');
   const g = alunosGerados(a), n = Math.max(...g.map(x => x.gabarito.length)), res = a.resultados || {};
-  const cab = ['Código', 'Nome', 'RA', 'Situação', 'Acertos', 'Questões', 'Nota objetivas', 'Nota discursivas', 'Nota']; for(let i = 1; i <= n; i++) cab.push('Q' + i); cab.push('Gabarito', 'Conferir');
+  const en = ehEnade(a);
+  const cab = ['Código', 'Nome', 'RA', 'Situação', 'Acertos', 'Questões', 'Nota objetivas', 'Nota discursivas', 'Nota'].concat(en ? ['Acertos FG', 'Acertos CE', 'Nota FG', 'Nota CE'] : []); for(let i = 1; i <= n; i++) cab.push('Q' + i); cab.push('Gabarito', 'Conferir');
   const linhas = [cab];
   g.slice().sort((x, y) => x.nome.localeCompare(y.nome, 'pt-BR')).forEach(al => {
     const r = res[al.codigo], l = [al.codigo, al.nome, al.ra || '', r ? (r.faltaDisc ? 'falta discursiva' : 'corrigida') : 'pendente', r ? r.acertos : '', al.gabarito.length,
       r ? fmt(r.notaObj != null ? r.notaObj : r.nota) : '', r && r.notaDisc != null ? fmt(r.notaDisc) : '', r ? fmt(r.nota) : ''];
+    if(en) l.push(r ? r.acFG + '/' + r.nFG : '', r ? r.acCE + '/' + r.nCE : '', r ? fmt(r.notaFG) : '', r ? fmt(r.notaCE) : '');
     for(let i = 0; i < n; i++) l.push(r ? (r.marcadas[i] || '-') : '');
     l.push(al.gabarito, r ? r.status.map((s, i) => (s !== 'ok' && s !== 'manual') ? 'Q' + (i + 1) + ' ' + s : '').filter(Boolean).join(', ') : '');
     linhas.push(l);
@@ -769,8 +816,10 @@ function mostrarResultado(it){
   const pend = it.status.filter(s => s !== 'ok' && s !== 'manual').length;
   const nomes = {ok: '', branco: 'branco', multipla: 'dupla', duvida: 'dúvida', manual: 'editada'};
   let linhas = '';
+  const enade = ehEnade(a), nFG = al.nFG || 0, ndFG = al.ndFG || 0;
   for(let i = 0; i < n; i++){
     const m = it.marcadas[i], g = al.gabarito[i], st = it.status[i];
+    if(enade && (i === 0 || i === nFG) && n > nFG) linhas += '<tr><td colspan="4" class="lbl" style="text-align:left;padding-top:8px"><b>' + NOME_PARTE[i < nFG ? 'FG' : 'CE'] + '</b></td></tr>';
     const cls = (st !== 'ok' && st !== 'manual') ? 'warn' : (m === g ? 'ok' : 'bad');
     linhas += '<tr><td><b>' + (i + 1) + '</b></td><td><span class="ch ' + cls + '" onclick="abrirPicker(' + i + ')">' + (m || '–') + '</span> ' +
       (nomes[st] ? '<span class="pill ' + (st === 'manual' ? '' : 'warn') + '">' + nomes[st] + '</span>' : '') + '</td><td><span class="ch">' + g + '</span></td><td>' +
@@ -780,15 +829,17 @@ function mostrarResultado(it){
     '<div class="card"><div class="lbl">' + esc(al.codigo) + ' · RA ' + esc(al.ra || '–') + ' · ' + esc([a.disciplina, a.titulo].filter(Boolean).join(' · ')) + '</div>' + (al.extra ? '<div class="alerta">' + (al.semNome ? 'Prova sem nome' : 'Prova extra (aluno fora da lista)') + '. Digite o nome do aluno:</div><input type="text" style="margin-top:8px" value="' + (al.nome === 'ALUNO(A) NÃO LISTADO(A)' ? '' : esc(al.nome)) + '" placeholder="Nome do aluno" onchange="atual.aluno.nome = this.value.trim().toUpperCase() || \'ALUNO(A) NÃO LISTADO(A)\'; salvarDB()">' : '<h2 style="font-size:20px">' + esc(al.nome) + '</h2>') +
     '<div class="row" style="margin-top:8px;align-items:flex-end"><div><div class="lbl">Nota</div><div class="big">' + fmt(calc.nota) + '</div></div>' +
     (n ? '<div><div class="lbl">Acertos' + (V.nd ? ' (objetivas)' : '') + '</div><div class="big" style="font-size:28px">' + calc.acertos + '/' + n + '</div></div>' : '') + '</div>' +
+    (enade ? '<p class="lbl" style="margin-top:6px">Nota de 0 a 100 · Formação Geral <b>' + fmt(calc.notaFG) + '</b> (' + calc.acFG + '/' + calc.nFG + ' objetivas) · Específico <b>' + fmt(calc.notaCE) + '</b> (' + calc.acCE + '/' + calc.nCE + ' objetivas)</p>' : '') +
     (V.nd && !n && calc.faltaDisc ? '<div class="alerta">Falta lançar a nota de ' + calc.faltaDisc + ' questão(ões) (mais abaixo).</div>' : '') +
-    (V.nd && n ? '<p class="lbl" style="margin-top:6px">Objetivas ' + fmt(calc.notaObj) + ' + discursivas ' + fmt(calc.notaDisc) + '</p>' +
+    (V.nd && n && enade && calc.faltaDisc ? '<div class="alerta">Falta lançar a nota de ' + calc.faltaDisc + ' discursiva' + (calc.faltaDisc > 1 ? 's' : '') + ' (mais abaixo).</div>' : '') +
+    (V.nd && n && !enade ? '<p class="lbl" style="margin-top:6px">Objetivas ' + fmt(calc.notaObj) + ' + discursivas ' + fmt(calc.notaDisc) + '</p>' +
       (calc.faltaDisc ? '<div class="alerta">Falta lançar a nota de ' + calc.faltaDisc + ' discursiva' + (calc.faltaDisc > 1 ? 's' : '') + ' (mais abaixo).</div>' : '') : '') +
     (pend ? '<div class="alerta">' + pend + (pend > 1 ? ' questões precisam' : ' questão precisa') + ' de conferência. Toque na resposta para corrigir.</div>' : '') +
     (ja && !it.salvo ? '<div class="alerta bad">Esta prova já foi corrigida (nota ' + fmt(ja.nota) + '). Salvar vai substituir.</div>' : '') + '</div>' +
     (n ? '<div class="card"><table class="qgrid"><tr><th>Questão</th><th>Marcada</th><th>Gabarito</th><th></th></tr>' + linhas + '</table>' +
     '<p class="lbl" style="margin-top:8px">Questão em branco ou com dupla marcação conta como errada, a menos que você escolha a resposta.</p></div>' : '') +
     (V.nd ? '<div class="card"><h2>' + (n ? 'Questões discursivas' : 'Notas das questões') + '</h2><p class="lbl">Leia as respostas na prova do aluno e digite a nota de cada uma (de 0 a ' + fmt(V.vdq) + ').</p>' +
-      (al.disc || []).map((id, k) => '<label class="campo"><span>Questão ' + (n + k + 1) + ' · ref. ' + esc(id) + ' (vale ' + fmt(V.vdq) + ')</span><input type="text" inputmode="decimal" value="' + (it.disc[k] == null ? '' : it.disc[k]) + '" placeholder="nota" onchange="notaDisc(' + k + ', this.value)"></label>').join('') + '</div>' : '') +
+      (al.disc || []).map((id, k) => '<label class="campo"><span>' + (enade ? 'Discursiva ' + (k + 1) + ' · ' + NOME_PARTE[k < ndFG ? 'FG' : 'CE'] + ' · ref. ' + esc(id) + ' (nota de 0 a 10)' : 'Questão ' + (n + k + 1) + ' · ref. ' + esc(id) + ' (vale ' + fmt(V.vdq) + ')') + '</span><input type="text" inputmode="decimal" value="' + (it.disc[k] == null ? '' : it.disc[k]) + '" placeholder="nota" onchange="notaDisc(' + k + ', this.value)"></label>').join('') + '</div>' : '') +
     '<div class="card" id="cardSnap" style="display:none"><div class="lbl">Imagem lida</div><canvas class="snap" id="snap"></canvas></div>' +
     '<div class="stack">' +
     (it.lote ? '<button class="btn acc" onclick="salvarAtual(false)">' + (it.salvo ? 'Salvar alterações' : 'Salvar') + ' e voltar à lista</button><button class="btn sec" onclick="voltarLote()">Voltar à lista</button>' :
@@ -836,6 +887,7 @@ function gravarResultado(a, al, marcadas, status, disc){
   a.resultados[al.codigo] = {marcadas: marcadas.slice(), status: status.slice(), acertos: calc.acertos, n: calc.n, nota: calc.nota,
     pendencias: status.filter(s => s !== 'ok' && s !== 'manual').length, quando: new Date().toISOString()};
   if(disc && disc.length) Object.assign(a.resultados[al.codigo], {disc: disc.slice(), notaObj: calc.notaObj, notaDisc: calc.notaDisc, faltaDisc: calc.faltaDisc});
+  if(ehEnade(a)) Object.assign(a.resultados[al.codigo], {notaFG: calc.notaFG, notaCE: calc.notaCE, acFG: calc.acFG, acCE: calc.acCE, nFG: calc.nFG, nCE: calc.nCE});
   return calc;
 }
 function salvarAtual(proxima){

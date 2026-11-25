@@ -37,3 +37,11 @@ python3 escanear.py     # preenche as folhas e monta escaneado_1.pdf e escaneado
 python3 e2e_pdf.py      # envia os dois PDFs pelo app (index.html?local=1) e confere leituras e notas
 ```
 Resultado: 9/9 folhas lidas exatamente, 9/9 notas exatas.
+
+## 4. Simulado ENADE: cartão-resposta OMR3 (25/11/2026)
+Gere um simulado pelo app e salve `sim100.pdf` e `gerado100.json` (`{id, alunos: [{codigo, gabarito}]}`). Depois:
+```bash
+python3 sim3.py 100 30      # 30 fotos do cartão (perspectiva, sombra, giro de 90° e 180°, branco, dupla, X, preenchimento parcial)
+node testar3.js casos100.json
+```
+Resultado: 30/30 fotos (prova completa, 35 objetivas) e 12/12 (meia prova, 17 objetivas). No navegador: 4/4 correções por foto e 4/4 por PDF escaneado (150 a 300 dpi, giro, de cabeça para baixo), 8/8 notas de 0 a 100 iguais ao cálculo independente, nas pastas corretor-provas/ e simulapro/.

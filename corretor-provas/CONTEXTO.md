@@ -117,6 +117,15 @@ Também há um **exemplo de demonstração** (avaliação `DEMO`, 3 alunos) e o 
 - Limite: o site é público e estático; a senha só esconde as telas de quem pega o aparelho. Esquecendo a senha, é preciso apagar os dados do site no navegador (isso apaga também as avaliações; antes, exportar backup).
 - Código: `entradaLocal()`, `telaSenhaLocal()`, `menuLocal()` em `conta.js`. Testado com Playwright: criar, senhas diferentes, senha errada, certa, trocar, bloquear e 5 erros.
 
+## 4i. Simulado ENADE em papel (25/11/2026, versão 20261125i; simulapro/ 20261125u)
+- Pedido do professor: simulado no formato do ENADE, escolhendo **prova completa (100%)** ou **meia prova (50%)**. Botão *+ Novo simulado ENADE* (Início e Avaliações) ou campo **Tipo** no passo 1 (`a.modelo = 'enade'`, `a.config.enade = 100|50`).
+- Estrutura (`ENADE_ESTR` em `app.js`): 100% = Formação Geral 8 objetivas + 2 discursivas e Componente Específico 27 + 3; 50% = 4 + 1 e 13 + 2. Banco: coluna **Parte** (`q.parte` FG/CE; sem ela, CE) e **Competência** (`q.comp`; também "Habilidade", "Competência/Conteúdo"). Planilha modelo própria (`baixarModeloEnade()`).
+- Sorteio (`sortearEnade()`, `sorteadorParte()`): mesma regra das provas, separado por parte; objetivas FG primeiro (1 a 8), depois CE; discursivas FG primeiro. Aluno guarda `nFG`, `ndFG`, `disc`. Layout **OMR3**.
+- Nota (`calcularEnade()`): 0 a 100 com os pesos do ENADE: 25% FG (objetivas 60%, discursivas 40%) + 75% CE (objetivas 85%, discursivas 15%). Discursivas recebem nota de 0 a 10. Resultado guarda `notaFG, notaCE, acFG, acCE`.
+- **Cartão-resposta OMR3** (novo; OMR1/OMR2 não mudaram): página inteira, 180 × 126 mm, marcador 8, QR (146, 6, 28), 4 colunas de 10 bolhas (x0 13/57/101/145, y0 56, dx 7,5, dy 6,6, raio 2,4), até 40 objetivas; números da FG em vermelho. Na página: origem (15, 24) mm. Abaixo da área lida: como marcar, assinatura e quadro "Uso do professor" com as notas das discursivas. O cartão sai numa folha própria no fim do caderno (com frente e verso, o app insere página em branco para ele ficar na frente). `omr.js` não mudou.
+- PDF do caderno (`cadernoEnade()` em `pdfgen.js`): quadros do aluno/professor ("SIMULADO ENADE - NOTA DE 0 A 100"), instruções, faixa FORMAÇÃO GERAL (objetivas em 2 colunas + discursivas na largura toda) e COMPONENTE ESPECÍFICO. Gabarito com 35 colunas (FG em vermelho). **Relatório do simulado** (`relatorioEnade()`): médias geral/FG/CE, tabela por aluno, acerto por competência e questões com menor acerto (`analiseEnade()` em `app.js`). **Boletins individuais** (`PDFGEN.gerarBoletins()`): uma página por aluno. CSV com colunas FG/CE.
+- Testado (Playwright, nas duas pastas): 100% e 50% criados pela tela, 30/30 e 12/12 fotos simuladas do cartão, 4/4 por foto e 4/4 por PDF escaneado no app, 8/8 notas conferidas por cálculo independente; prova bimestral normal continua com 2 páginas e OMR2. Scripts: `testes/sim3.py`, `testes/testar3.js`.
+
 ## 5. Folha de respostas e leitura óptica
 
 **QR code**: `VERSÃO|id da avaliação|código do aluno|nº de questões` (ex.: `OMR2|AK3F9QZ1|P07|8`). Nunca contém as respostas; o gabarito fica só no aparelho do professor.

@@ -170,7 +170,7 @@ h3{font-size:1.15rem;margin-bottom:4px}
         <p class="lead">O SimulaPro gera uma prova diferente para cada aluno, corrige a folha de respostas pela câmera do celular e entrega o relatório de notas da turma.</p>
         <div class="botoes">
           <a class="btn btn-destaque" href="index.html">Entrar como professor</a>
-          <a class="btn btn-linha" id="btnAluno" href="aluno.html" hidden>Sou aluno</a>
+          <a class="btn btn-linha" id="btnAluno" href="aluno/" hidden>Sou aluno</a>
           <a class="btn btn-linha" id="btnConhecer" href="#recursos">Conhecer o app</a>
         </div>
         <p class="aviso-acesso"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Acesso para professores cadastrados.</p>
@@ -230,8 +230,8 @@ h3{font-size:1.15rem;margin-bottom:4px}
         </article>
         <article class="recurso">
           <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M3 17l5-5 4 4 8-8"/><path d="M15 8h5v5"/></svg></div>
-          <h3>Trilha de estudos <span class="selo">Em breve</span></h3>
-          <p>Uma trilha quinzenal de questões para os alunos treinarem entre as provas, com acompanhamento do professor.</p>
+          <h3>Trilha de estudos</h3>
+          <p>A cada 15 dias abre uma rodada de questões no estilo do ENADE. O aluno responde no celular com um código individual, e o professor acompanha a evolução da turma por tema.</p>
         </article>
       </div>
     </div>
@@ -279,8 +279,8 @@ h3{font-size:1.15rem;margin-bottom:4px}
 </footer>
 
 <script>
-/* O botão "Sou aluno" aparece sozinho quando a área do aluno (aluno.html) for publicada. */
-fetch('aluno.html', {method: 'HEAD', cache: 'no-store'}).then(function(r){
+/* O botão "Sou aluno" aparece sozinho quando a área do aluno (aluno/) estiver publicada. */
+fetch('aluno/', {method: 'HEAD', cache: 'no-store'}).then(function(r){
   if(r.ok){ document.getElementById('btnAluno').hidden = false; document.getElementById('btnConhecer').hidden = true; }
 }).catch(function(){});
 </script>

@@ -232,6 +232,9 @@ case 'admin_excluir': { // remove o professor e todos os dados dele do servidor
     if (!$ok) cp_erro(404, 'Professor não encontrado.');
     cp_apagar_sessoes($uid);
     foreach (CP_TIPOS as $t) cp_apagar_pasta(cp_pasta() . '/' . $t . '/' . $uid);
+    // trilhas ENADE do professor (respostas dos alunos) e os códigos de acesso delas
+    cp_apagar_pasta(cp_pasta() . '/trilhas/' . $uid);
+    if (is_file(cp_pasta() . '/trilhas/_codigos.json')) cp_alterar(cp_pasta() . '/trilhas/_codigos.json', function (array &$c) use ($uid) { foreach ($c as $k => $r) if (($r['uid'] ?? '') === $uid) unset($c[$k]); });
     cp_json(200, ['ok' => true]);
 }
 

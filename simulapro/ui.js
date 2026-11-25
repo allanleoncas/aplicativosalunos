@@ -42,7 +42,7 @@ function renderInicio(){
   if(!lista.length){
     h += '<div class="card"><h2>Comece por aqui</h2><ol class="passos"><li>Cadastre suas turmas (a lista de alunos fica salva para as próximas provas).</li><li>Crie uma avaliação com curso, disciplina e data.</li><li>Envie o banco de questões e escolha a turma.</li>' +
          '<li>Gere as provas: cada aluno recebe uma prova diferente, já com o cabeçalho da instituição (o da UNIFADAP vem pronto; outro pode ser enviado uma vez só).</li><li>Depois da prova, corrija as folhas pela câmera do celular.</li></ol>' +
-         '<div class="stack" style="margin-top:12px"><button class="btn acc" onclick="novaDoPainel()">+ Nova avaliação</button><button class="btn sec" onclick="carregarDemo()">Ver um exemplo pronto</button>' + botaoInstalar('btn sec') + '</div></div>' + blocoTurmas() + blocoCabecalho() +
+         '<div class="stack" style="margin-top:12px"><button class="btn acc" onclick="novaDoPainel()">+ Nova avaliação</button><button class="btn sec" onclick="carregarDemo()">Ver um exemplo pronto</button>' + botaoInstalar('btn sec') + '</div></div>' + blocoTurmas() + blocoTrilhas() + blocoCabecalho() +
          '<p class="lbl" style="margin-top:6px;text-align:center;opacity:.7">Versão ' + VERSAO_APP + '</p>';
     $('#v-inicio').innerHTML = h; return;
   }
@@ -57,7 +57,7 @@ function renderInicio(){
        '<button class="btn" onclick="irCorrigir()">Corrigir provas</button></div>';
   if(sessao && sessao.usuario.papel === 'admin') h += '<div class="card avcard" onclick="adminLista=null;aba(\'admin\')"><div class="row" style="align-items:center"><div style="flex:1"><b>Administração</b><div class="lbl">Professores, liberação de acesso e uso do app</div></div><span class="lbl">›</span></div></div>';
   if(botaoInstalar()) h += '<div style="margin:-4px 0 14px">' + botaoInstalar('btn sec') + '</div>';
-  h += blocoTurmas();
+  h += blocoTurmas() + blocoTrilhas();
   // próximas provas
   const prox = lista.filter(a => a.data && a.data >= hoje).sort((x, y) => x.data.localeCompare(y.data));
   if(prox.length){

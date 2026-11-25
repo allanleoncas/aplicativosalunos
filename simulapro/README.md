@@ -32,3 +32,17 @@ monta a prova no computador e corrige pela câmera do celular.
 
 Este repositório é público. **Nunca** coloque aqui senhas, a pasta de dados (`_dados`, `simulapro-dados`),
 o `simulapro-config.php` ou listas de alunos. O `.gitignore` desta pasta já bloqueia esses arquivos.
+
+## Trilha ENADE (treino quinzenal online)
+
+- **Professor** (Início › Trilhas ENADE, `trilhas.js`): escolhe uma turma salva, o banco (de uma avaliação ou planilha;
+  só objetivas), a data da 1ª rodada, o nº de rodadas e de questões por rodada. O app gera um código individual por
+  aluno (PDF com recortes e QR), mostra o calendário, quem respondeu, notas por rodada e acerto da turma por tema,
+  e exporta relatório (PDF) e planilha (CSV).
+- **Aluno** (`aluno/`, ou seja, `allanleon.com.br/SimulaPro/aluno`): entra com o código (ou pelo QR), aceita o aviso de
+  privacidade (LGPD) no 1º acesso e responde a rodada aberta. Vê a nota na hora; o gabarito comentado aparece quando a
+  rodada fecha.
+- **Servidor** (`api/trilha.php`): rodada k abre em início + 15·k dias e fica aberta 15 dias (fuso de São Paulo).
+  O sorteio é por aluno, sem repetir questões já vistas; a partir da 3ª rodada os temas em que ele mais errou têm mais
+  peso. A correção é feita no servidor: o celular nunca recebe o gabarito de rodada aberta. Dados em
+  `simulapro-dados/trilhas/<professor>/<trilha>.json` e `trilhas/_codigos.json`; 10 códigos errados por IP = 10 min de espera.

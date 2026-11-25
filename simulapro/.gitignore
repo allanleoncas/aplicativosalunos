@@ -1,0 +1,9 @@
+# Nunca publicar dados, senhas ou configurações do servidor
+_dados/
+api/_dados/
+simulapro-dados/
+config.php
+api/config.php
+simulapro-config.php
+*.zip
+.env

@@ -1,0 +1,3 @@
+# Endereço em minúsculas: leva para /SimulaPro/
+RewriteEngine On
+RewriteRule ^(.*)$ /SimulaPro/$1 [R=301,L]

@@ -1,4 +1,4 @@
-/* Corretor de Provas – lógica do aplicativo */
+/* SimulaPro (antigo Corretor de Provas) – lógica do aplicativo */
 'use strict';
 const LAYOUTS = {
   OMR1: {"versao":"OMR1","largura":170,"altura":130,"marcador":9,"qr":{"x":128,"y":8,"lado":32},
@@ -7,7 +7,7 @@ const LAYOUTS = {
     "bolhas":{"blocos":[{"x0":22,"y0":33},{"x0":84,"y0":33}],"porBloco":5,"dx":9,"dy":6.5,"raio":2.5,"letras":"ABCDE","max_questoes":10}}
 };
 const MAXQ = 10;
-const VERSAO_APP = '20261125f'; // mude a cada publicação para o navegador não usar arquivos antigos
+const VERSAO_APP = '20261125g'; // mude a cada publicação para o navegador não usar arquivos antigos
 const LETRAS = 'ABCDE';
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));

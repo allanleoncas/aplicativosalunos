@@ -1,4 +1,4 @@
-/* Corretor de Provas – interface */
+/* SimulaPro – interface */
 'use strict';
 let editando = false, abaAtual = 'inicio', corrigindo = false;
 

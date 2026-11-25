@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Corretor de Provas</title>
+<title>SimulaPro</title>
 <meta name="theme-color" content="#1F3864">
-<meta name="description" content="Gere provas individuais em PDF a partir de um banco de questões, corrija pela câmera do celular e emita o relatório de notas.">
+<meta name="description" content="SimulaPro: provas bimestrais, exames e simulados. Gere provas individuais em PDF a partir de um banco de questões, corrija pela câmera do celular e emita o relatório de notas.">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231F3864'/%3E%3Ccircle cx='22' cy='24' r='7' fill='%23FF3B5F'/%3E%3Ccircle cx='42' cy='24' r='7' fill='none' stroke='%23fff' stroke-width='3'/%3E%3Ccircle cx='22' cy='44' r='7' fill='none' stroke='%23fff' stroke-width='3'/%3E%3Ccircle cx='42' cy='44' r='7' fill='%23fff'/%3E%3C/svg%3E">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<meta name="apple-mobile-web-app-title" content="Corretor">
+<meta name="apple-mobile-web-app-title" content="SimulaPro">
 <style>
 :root{--bg:#f1f3f8;--card:#fff;--ink:#141a2b;--mute:#5d6578;--line:#dde2ec;--navy:#1F3864;--navy2:#2E5FA3;--acc:#FF3B5F;
 --ok:#16784a;--okb:#dcf2e6;--bad:#b8322a;--badb:#fbe4e1;--warn:#8a5a00;--warnb:#fdf0cf}
@@ -124,7 +124,7 @@ h3.sec{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--
 <div class="app">
   <header class="top">
     <div class="logo"><svg width="24" height="24" viewBox="0 0 24 24"><circle cx="7" cy="8" r="3.4" fill="#FF3B5F"/><circle cx="17" cy="8" r="3.4" fill="none" stroke="#fff" stroke-width="1.6"/><circle cx="7" cy="17" r="3.4" fill="none" stroke="#fff" stroke-width="1.6"/><circle cx="17" cy="17" r="3.4" fill="#fff"/></svg></div>
-    <div style="min-width:0;flex:1"><h1>Corretor de Provas</h1><small id="subtitulo">Carregando…</small></div>
+    <div style="min-width:0;flex:1"><h1>SimulaPro</h1><small id="subtitulo">Carregando…</small></div>
     <button id="btnConta" class="conta" style="display:none" onclick="menuConta()" aria-label="Minha conta">?</button>
   </header>
   <section class="view on" id="v-inicio"></section>
@@ -166,10 +166,10 @@ h3.sec{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--
 <input type="file" id="arqAlunos" accept=".xlsx,.xls,.csv,.ods,.txt" hidden onchange="onAlunosArq(this)">
 
 <script src="lib/jsQR.js"></script>
-<script src="omr.js?v=20261125f"></script>
-<script src="app.js?v=20261125f"></script>
-<script src="conta.js?v=20261125f"></script>
-<script src="turmas.js?v=20261125f"></script>
-<script src="ui.js?v=20261125f"></script>
+<script src="omr.js?v=20261125g"></script>
+<script src="app.js?v=20261125g"></script>
+<script src="conta.js?v=20261125g"></script>
+<script src="turmas.js?v=20261125g"></script>
+<script src="ui.js?v=20261125g"></script>
 </body>
 </html>

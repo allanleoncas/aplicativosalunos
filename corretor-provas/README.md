@@ -1,8 +1,11 @@
-# Corretor de Provas
+# SimulaPro (antigo Corretor de Provas)
 
-Aplicativo para professores: gera provas objetivas individuais em PDF a partir de um banco de questões, corrige pela câmera do celular e emite o relatório de notas. Serve para qualquer curso e disciplina.
+Aplicativo para professores, para provas bimestrais, exames e simulados: gera provas objetivas individuais em PDF a partir de um banco de questões, corrige pela câmera do celular e emite o relatório de notas. Serve para qualquer curso e disciplina.
 
-**Abrir:** https://allanleoncas.github.io/aplicativosalunos/corretor-provas/
+**Abrir:** https://allanleon.com.br/SimulaPro/ (Hostinger) ou https://allanleoncas.github.io/aplicativosalunos/corretor-provas/ (GitHub Pages)
+
+## Publicar na Hostinger
+O app é estático: basta copiar os arquivos desta pasta (sem `testes/`, `gerador/`, `README.md` e `CONTEXTO.md`) para `public_html/SimulaPro/`. O `.htaccess` desta pasta força HTTPS (a câmera precisa), libera a câmera e evita cache velho do `index.html` e do `sw.js`. Fora do `github.io` e do `aprovoia.com.br` o app funciona sem contas, com os dados só no navegador (`MODO_LOCAL` em `conta.js`). Cada endereço tem os seus próprios dados no navegador: para levar avaliações de um para outro, use *Exportar backup* e *Importar*.
 
 ## Fluxo
 1. **Avaliações** – crie uma avaliação (curso, disciplina, título, data, valor, questões por prova).

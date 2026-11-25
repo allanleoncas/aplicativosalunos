@@ -1,11 +1,12 @@
-// Corretor de Provas — login, sincronização com o servidor, administrador e instalação do app.
+// SimulaPro — login, sincronização com o servidor, administrador e instalação do app.
 // Os dados de cada professor ficam no aparelho (IndexedDB, uma chave por conta) e são copiados para o
 // servidor (api/index.php). Sem internet o app continua funcionando e envia depois.
 'use strict';
 
 const CP_API = 'api/index.php';
-// No GitHub Pages não há servidor: o app funciona sem login, com os dados só no aparelho.
-const MODO_LOCAL = /github\.io$/i.test(location.hostname) || location.protocol === 'file:' || /[?&]local=1/.test(location.search);
+// Sem servidor (GitHub Pages, allanleon.com.br/SimulaPro e outros sites estáticos) o app funciona sem login,
+// com os dados só no aparelho. Contas e sincronização só onde existe a API (provas.aprovoia.com.br).
+const MODO_LOCAL = !/(^|\.)aprovoia\.com\.br$/i.test(location.hostname) || location.protocol === 'file:' || /[?&]local=1/.test(location.search);
 let sessao = null;               // {token, usuario}
 let sincronizando = false, syncDeNovo = false, syncTimer = null, syncEstado = 'ok';
 
@@ -79,7 +80,7 @@ function telaSenhaLocal(msg, modo){
   $('#btnConta').style.display = 'none';
   const L = $('#login'); L.classList.add('on');
   L.innerHTML = '<div class="login-caixa"><div class="login-logo"><svg width="34" height="34" viewBox="0 0 24 24"><circle cx="7" cy="8" r="3.4" fill="#FF3B5F"/><circle cx="17" cy="8" r="3.4" fill="none" stroke="#fff" stroke-width="1.6"/><circle cx="7" cy="17" r="3.4" fill="none" stroke="#fff" stroke-width="1.6"/><circle cx="17" cy="17" r="3.4" fill="#fff"/></svg></div>' +
-    '<h1>Corretor de Provas</h1><p class="muted" style="margin:4px 0 18px">Provas individuais, correção pela câmera e relatório de notas.</p>' +
+    '<h1>SimulaPro</h1><p class="muted" style="margin:4px 0 18px">Provas, exames e simulados: provas individuais, correção pela câmera e relatório de notas.</p>' +
     (msg ? '<div class="alerta" style="margin-bottom:12px">' + esc(msg) + '</div>' : '') +
     '<form class="card" onsubmit="event.preventDefault();' + (criar ? 'slCriar(' + (modo === 'trocar') + ')' : 'slEntrar()') + '">' +
     (criar ? '<h2>' + (modo === 'trocar' ? 'Nova senha de entrada' : 'Crie sua senha de entrada') + '</h2>' +
@@ -125,7 +126,7 @@ function telaLogin(msg, modo = 'entrar'){
   const L = $('#login'); L.classList.add('on');
   const cad = modo === 'cadastrar';
   L.innerHTML = '<div class="login-caixa"><div class="login-logo"><svg width="34" height="34" viewBox="0 0 24 24"><circle cx="7" cy="8" r="3.4" fill="#FF3B5F"/><circle cx="17" cy="8" r="3.4" fill="none" stroke="#fff" stroke-width="1.6"/><circle cx="7" cy="17" r="3.4" fill="none" stroke="#fff" stroke-width="1.6"/><circle cx="17" cy="17" r="3.4" fill="#fff"/></svg></div>' +
-    '<h1>Corretor de Provas</h1><p class="muted" style="margin:4px 0 18px">Provas individuais, correção pela câmera e relatório de notas.</p>' +
+    '<h1>SimulaPro</h1><p class="muted" style="margin:4px 0 18px">Provas, exames e simulados: provas individuais, correção pela câmera e relatório de notas.</p>' +
     (msg ? '<div class="alerta" style="margin-bottom:12px">' + esc(msg) + '</div>' : '') +
     (modo === 'aguardando' ? '<div class="card"><h2>Cadastro recebido</h2><p class="muted">O administrador precisa liberar o seu acesso. Depois disso, entre com seu e-mail e senha.</p></div>' +
        '<button class="btn" onclick="telaLogin()">Voltar para entrar</button>' :
@@ -307,6 +308,6 @@ function botaoInstalar(cls){
 async function instalarApp(){
   fecharFolha();
   if(pedidoInstalar){ pedidoInstalar.prompt(); const r = await pedidoInstalar.userChoice; pedidoInstalar = null; if(r.outcome !== 'accepted') toast('Instalação cancelada'); render(); return; }
-  abrirFolha('<h2>Instalar no iPhone/iPad</h2><ol class="passos"><li>No <b>Safari</b>, toque no botão <b>Compartilhar</b> (quadrado com seta para cima).</li><li>Escolha <b>Adicionar à Tela de Início</b>.</li><li>Toque em <b>Adicionar</b>. O ícone do Corretor aparece na tela inicial.</li></ol><button class="btn" onclick="fecharFolha()">Entendi</button>');
+  abrirFolha('<h2>Instalar no iPhone/iPad</h2><ol class="passos"><li>No <b>Safari</b>, toque no botão <b>Compartilhar</b> (quadrado com seta para cima).</li><li>Escolha <b>Adicionar à Tela de Início</b>.</li><li>Toque em <b>Adicionar</b>. O ícone do SimulaPro aparece na tela inicial.</li></ol><button class="btn" onclick="fecharFolha()">Entendi</button>');
 }
 function registrarSW(){ if('serviceWorker' in navigator && window.isSecureContext) navigator.serviceWorker.register('sw.js').catch(e => console.warn(e)); }

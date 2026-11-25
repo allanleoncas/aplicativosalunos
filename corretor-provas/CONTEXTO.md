@@ -2,6 +2,13 @@
 
 Estado em 19/11/2026 (modelo de prova aprovado pelo professor às 10h). Documento de passagem: o que o app faz, como está organizado, decisões tomadas e próximos passos.
 
+## 0b. Nome SimulaPro e site na Hostinger (25/11/2026, versão 20261125g)
+- O professor deu ao app o nome **SimulaPro** (provas bimestrais, exames e simulados). Mudou só o nome exibido: título da página, topo, telas de entrada, manifest (nome do app instalado) e cache do service worker (`simulapro-v5`). Pasta, IndexedDB (`corretorProvas`), formato de backup, PDFs e layouts OMR não mudaram.
+- Endereço novo: **https://allanleon.com.br/SimulaPro/** (Hostinger, pasta `public_html/SimulaPro`, enviada por .zip pelo Gerenciador de Arquivos). O GitHub Pages continua no ar com o mesmo código.
+- `MODO_LOCAL` (`conta.js`) agora vale em qualquer site, exceto `*.aprovoia.com.br` (onde há a API de contas). Antes só valia no `github.io`, e no domínio novo o app teria pedido login de servidor.
+- `.htaccess` na pasta: HTTPS obrigatório, câmera liberada, `testes/` e `gerador/` bloqueados, sem cache para `index.html`, `sw.js` e manifest. O endereço é sensível a maiúsculas: o .zip traz também `public_html/simulapro/` que redireciona para `/SimulaPro/`.
+- Os dados no navegador são por endereço: o que está no GitHub Pages não aparece sozinho no site novo (usar *Exportar backup* / *Importar*; a senha de entrada é criada de novo).
+
 ## 1. O que é
 
 Webapp para professores, criado pelo Prof. Dr. Allan Leon Casemiro da Silva (UNIFADAP, Tupã/SP), com três funções:

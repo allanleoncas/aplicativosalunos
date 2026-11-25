@@ -29,3 +29,11 @@ O script cria uma avaliação pela interface, envia cabeçalho (`cab_teste.pdf`)
 ## Resultados da última validação (19/11/2026)
 - OMR1: 90/90 fotos simuladas + 30/30 giradas (até 90°).
 - OMR2: 30/30 fotos (inclusive de cabeça para baixo) + 6/6 no fluxo completo.
+
+## 3. Correção por PDF escaneado (25/11/2026)
+Com `provas.pdf`, `gerado.json` (`{id, alunos: [{codigo, nome, gabarito}]}`) e `db.json` (cópia de `db` do app) gerados pelo app:
+```bash
+python3 escanear.py     # preenche as folhas e monta escaneado_1.pdf e escaneado_2.pdf (150–300 dpi, giro, folha de cabeça para baixo)
+python3 e2e_pdf.py      # envia os dois PDFs pelo app (index.html?local=1) e confere leituras e notas
+```
+Resultado: 9/9 folhas lidas exatamente, 9/9 notas exatas.

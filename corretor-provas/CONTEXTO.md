@@ -7,7 +7,7 @@ Estado em 19/11/2026 (modelo de prova aprovado pelo professor às 10h). Document
 Webapp para professores, criado pelo Prof. Dr. Allan Leon Casemiro da Silva (UNIFADAP, Tupã/SP), com três funções:
 
 1. **Gerar provas individuais em PDF**: com o cabeçalho padrão da UNIFADAP (ou outro, opcional), um banco de questões (planilha) e a lista de alunos, sorteia uma prova diferente para cada aluno, para evitar cola.
-2. **Corrigir pela câmera do celular**: lê a folha de respostas (QR code + 4 marcadores + bolhas A–E) e calcula a nota.
+2. **Corrigir pela câmera do celular** (ou por PDF escaneado): lê a folha de respostas (QR code + 4 marcadores + bolhas A–E) e calcula a nota.
 3. **Emitir o relatório de notas em PDF** e exportar as notas em planilha (CSV).
 
 - Endereço: https://allanleoncas.github.io/aplicativosalunos/corretor-provas/
@@ -72,6 +72,13 @@ Também há um **exemplo de demonstração** (avaliação `DEMO`, 3 alunos) e o 
 - **Migração** (`migrarTurmas()`, uma vez, quando `db.turmas` não existe): listas das avaliações antigas viram turmas (listas iguais = uma turma).
 - **Exame sem nome**: chamada "Exame" → passo 4 mostra "Provas sem nome" (marcado) e **Quantidade de provas** (`a.semNome`, `a.qtdProvas`). O sorteio gera N provas `extra + semNome` (sem a extra adicional); `gerado.semNome = true`. PDF com NOME/CPF em branco, rodapé "Prova sem nome"; gabarito mostra "(sem nome)". Na correção o app pede o nome. `totalProvas(a)` conta as impressas (Corrigir, Início); `alunosGerados(a)` só as corrigidas (Turma, relatório). Exames antigos que já tinham lista ficam com `semNome = false`.
 - Testado (Playwright): migração, turma nova, prova da turma 6/6 correções exatas, exame com 4 provas e 2/2 correções exatas com nome digitado, recarregar mantém tudo.
+
+## 4e. Correção por PDF escaneado (25/11/2026, só na versão do GitHub Pages)
+
+- Na tela de correção de uma prova: botão **Corrigir a partir de PDF escaneado** (`#arqPDF`, aceita vários arquivos). `lerPDFs()` em `ui.js` abre cada PDF com pdf.js (no navegador, nada é enviado), desenha cada página (~2300 px no lado maior) e procura a folha em 3 tamanhos (`lerPaginaEscaneada()`). Páginas sem QR (frente da prova) são ignoradas; páginas com QR mas sem os 4 quadrados, ou de avaliação que não está no aparelho, aparecem como "não lidas".
+- `identificarFolha()` acha a avaliação pelo QR sem trocar a ativa (um PDF pode misturar avaliações). A imagem guardada para conferência é só o recorte da folha (`recortarFolha()`), para não pesar em PDFs grandes.
+- Tela **PDF lido** (`mostrarLote()`): lista os alunos com nota e avisos (p/ conferir, já corrigida, repetida, falta o nome, falta nota discursiva). Tocar abre a tela de resultado normal ("Salvar e voltar à lista"); **Salvar as N correções** grava todas (`gravarResultado()`, usado também por `salvarAtual()`). O `omr.js` e os layouts não mudaram.
+- Testado: 2 PDFs simulados (18 páginas, 9 alunos; 150, 200 e 300 dpi, giro de até 2,5°, uma folha de cabeça para baixo, uma escura, uma questão em branco e uma dupla) → 9/9 leituras exatas, 9/9 notas exatas, ~24 s no total; fotos OMR1 90/90 e OMR2 6/6 continuam certas. Scripts: `testes/escanear.py` e `testes/e2e_pdf.py`.
 
 ## 5. Folha de respostas e leitura óptica
 

@@ -422,7 +422,9 @@ function renderCorrigir(){
     '<div class="kpi"><span class="lbl">Maior</span><b>' + (notas.length ? fmt(Math.max(...notas)) : '–') + '</b></div>' +
     '<div class="kpi"><span class="lbl">Menor</span><b>' + (notas.length ? fmt(Math.min(...notas)) : '–') + '</b></div></div></div>' +
     '<div class="stack"><button class="btn acc" onclick="abrirCamera()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Corrigir com a câmera</button>' +
-    '<button class="btn sec" onclick="$(\'#arqFoto\').click()">Corrigir a partir de uma foto</button></div>' +
+    '<button class="btn sec" onclick="$(\'#arqFoto\').click()">Corrigir a partir de uma foto</button>' +
+    '<button class="btn sec" onclick="$(\'#arqPDF\').click()">Corrigir a partir de PDF escaneado</button></div>' +
+    '<p class="lbl" style="margin-top:8px;text-align:center">PDF escaneado: pode enviar um ou mais arquivos com as provas de vários alunos. O app encontra a folha de respostas de cada um.</p>' +
     '<p class="lbl" style="margin-top:12px;text-align:center">Se a folha for de outra prova deste aparelho, o app troca sozinho.</p>';
 }
 
@@ -570,6 +572,126 @@ function lerFoto(inp){
   im.src = url;
 }
 
+// =================== PDF escaneado (várias folhas de uma vez) ===================
+// Tudo roda no navegador (pdf.js): o arquivo não sai do aparelho.
+let lote = null; // {itens: [{rotulo, avId, aluno, marcadas, status, disc, snap, debug, salvo}], semFolha: [], naoLidas: [{rotulo, erro}]}
+function identificarFolha(r){
+  if(!r.ok) return {erro: r.erro === 'qr-formato' ? 'o QR code não é de uma folha de respostas' : 'QR lido, mas os 4 quadrados pretos não foram encontrados'};
+  const a = db.avaliacoes[r.qr.prova];
+  if(!a || !totalProvas(a)) return {erro: 'folha de uma avaliação que não está neste aparelho (' + r.qr.prova + ')'};
+  const aluno = todosGerados(a).find(x => x.codigo === r.qr.codigo);
+  if(!aluno) return {erro: 'a prova ' + r.qr.codigo + ' não está nesta avaliação'};
+  const n = aluno.gabarito.length;
+  return {avId: a.id, aluno, marcadas: r.respostas.slice(0, n).map(x => x.letra), status: r.respostas.slice(0, n).map(x => x.status)};
+}
+// recorta só a folha de respostas para mostrar na conferência (economiza memória em PDFs grandes)
+function recortarFolha(canvas, debug){
+  let x0 = 0, y0 = 0, x1 = canvas.width, y1 = canvas.height;
+  if(debug && debug.cantos.length === 4){
+    const xs = debug.cantos.map(c => c[0]), ys = debug.cantos.map(c => c[1]);
+    const mx = (Math.max(...xs) - Math.min(...xs)) * 0.06, my = (Math.max(...ys) - Math.min(...ys)) * 0.12;
+    x0 = Math.max(0, Math.floor(Math.min(...xs) - mx)); x1 = Math.min(canvas.width, Math.ceil(Math.max(...xs) + mx));
+    y0 = Math.max(0, Math.floor(Math.min(...ys) - my)); y1 = Math.min(canvas.height, Math.ceil(Math.max(...ys) + my));
+  }
+  const s = Math.min(1, 1100 / Math.max(x1 - x0, y1 - y0)), c = document.createElement('canvas');
+  c.width = Math.round((x1 - x0) * s); c.height = Math.round((y1 - y0) * s);
+  c.getContext('2d').drawImage(canvas, x0, y0, x1 - x0, y1 - y0, 0, 0, c.width, c.height);
+  const t = p => [(p[0] - x0) * s, (p[1] - y0) * s];
+  const d = debug ? {cantos: debug.cantos.map(t), bolhas: debug.bolhas.map(b => Object.assign({}, b, {p: t(b.p), rp: b.rp * s}))} : null;
+  return {snap: c, debug: d};
+}
+function lerPaginaEscaneada(pagina){
+  let melhor = null;
+  for(const max of [1700, 2300, 1200]){
+    const {canvas, img} = imagemDeFonte(pagina, pagina.width, pagina.height, max);
+    let r; try { r = analisarFolha(img, {escalasQR: [1, 0.6, 0.4], inverter: true}); } catch(e){ r = {ok: false, erro: 'qr'}; }
+    if(r.erro === 'qr') continue;               // nenhum QR nesta escala
+    const it = identificarFolha(r);
+    if(!it.erro) return Object.assign(it, recortarFolha(canvas, r.debug));
+    melhor = melhor || it;
+  }
+  return melhor || {semFolha: true};
+}
+async function lerPDFs(inp){
+  const arqs = [...inp.files]; inp.value = ''; if(!arqs.length) return;
+  const o = $('#ocupado'), msg = t => { $('#ocupadoTxt').textContent = t; };
+  o.classList.add('on'); msg('Abrindo o PDF…');
+  const novo = {itens: [], semFolha: [], naoLidas: []};
+  try {
+    await carregarScript('lib/pdf.min.js');
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'lib/pdf.worker.min.js';
+    for(const arq of arqs){
+      let pdf;
+      try { pdf = await pdfjsLib.getDocument({data: await arq.arrayBuffer()}).promise; }
+      catch(e){ novo.naoLidas.push({rotulo: arq.name, erro: 'não é um PDF válido'}); continue; }
+      for(let p = 1; p <= pdf.numPages; p++){
+        const rotulo = (arqs.length > 1 ? arq.name + ', ' : '') + 'página ' + p;
+        msg('Lendo ' + (arqs.length > 1 ? arq.name + ', ' : '') + 'página ' + p + ' de ' + pdf.numPages + '…');
+        await new Promise(r => setTimeout(r, 20));
+        const pg = await pdf.getPage(p), vp1 = pg.getViewport({scale: 1});
+        const vp = pg.getViewport({scale: Math.min(4, 2300 / Math.max(vp1.width, vp1.height))});
+        const c = document.createElement('canvas'); c.width = Math.round(vp.width); c.height = Math.round(vp.height);
+        const ctx = c.getContext('2d', {willReadFrequently: true}); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+        await pg.render({canvasContext: ctx, viewport: vp}).promise; pg.cleanup();
+        const it = lerPaginaEscaneada(c); c.width = c.height = 0;
+        if(it.semFolha) novo.semFolha.push(rotulo);
+        else if(it.erro) novo.naoLidas.push({rotulo, erro: it.erro});
+        else {
+          const a = db.avaliacoes[it.avId], ja = (a.resultados || {})[it.aluno.codigo], V = valores(a, it.aluno);
+          it.disc = (ja && ja.disc) ? ja.disc.slice() : Array(V.nd).fill(null);
+          it.rotulo = rotulo; it.lote = true;
+          it.repetida = novo.itens.some(x => x.avId === it.avId && x.aluno.codigo === it.aluno.codigo);
+          novo.itens.push(it);
+        }
+      }
+      await pdf.destroy();
+    }
+  } catch(e){ console.error(e); o.classList.remove('on'); alert('Não consegui abrir o PDF: ' + e.message); return; }
+  o.classList.remove('on');
+  if(!novo.itens.length){
+    alert('Nenhuma folha de respostas encontrada no PDF.' + (novo.naoLidas.length ? '\n\n' + novo.naoLidas.map(x => x.rotulo + ': ' + x.erro).join('\n') : '') +
+      '\n\nDigitalize em boa resolução (200 a 300 dpi), com a folha inteira e os 4 quadrados pretos visíveis.');
+    return;
+  }
+  lote = novo; mostrarLote();
+}
+function mostrarLote(){
+  const L = lote; atual = null;
+  const pend = it => it.status.filter(s => s !== 'ok' && s !== 'manual').length;
+  const semNomeFalta = it => it.aluno.extra && (!it.aluno.nome || it.aluno.nome === 'ALUNO(A) NÃO LISTADO(A)');
+  const naoSalvas = L.itens.filter(x => !x.salvo).length;
+  let h = '<div class="card"><h2>PDF lido</h2><p style="margin:4px 0 0"><b>' + L.itens.length + '</b> folha' + (L.itens.length > 1 ? 's' : '') + ' de respostas encontrada' + (L.itens.length > 1 ? 's' : '') + '.</p>' +
+    (L.semFolha.length ? '<p class="lbl" style="margin-top:4px">' + L.semFolha.length + ' página(s) sem folha de respostas foram ignoradas (por exemplo, a frente da prova).</p>' : '') +
+    (L.naoLidas.length ? '<div class="alerta bad">Não consegui ler ' + L.naoLidas.length + ' página(s):<br>' + L.naoLidas.map(x => esc(x.rotulo) + ': ' + esc(x.erro)).join('<br>') + '<br>Corrija essas pela câmera ou por uma foto.</div>' : '') +
+    '<p class="lbl" style="margin-top:8px">Toque num aluno para conferir as respostas. Amarelo = precisa de conferência.</p></div>' +
+    '<div class="card"><ul class="lista">';
+  L.itens.forEach((it, i) => {
+    const a = db.avaliacoes[it.avId], calc = calcular(a, it.aluno, it.marcadas, it.disc), ja = (a.resultados || {})[it.aluno.codigo], p = pend(it);
+    const pills = (it.salvo ? '<span class="pill ok">salva</span> ' : ja ? '<span class="pill warn">já corrigida (' + fmt(ja.nota) + ')</span> ' : '') +
+      (it.repetida ? '<span class="pill warn">repetida</span> ' : '') + (semNomeFalta(it) ? '<span class="pill warn">falta o nome</span> ' : '') +
+      (p ? '<span class="pill warn">' + p + ' p/ conferir</span> ' : '') + (calc.faltaDisc ? '<span class="pill warn">falta nota discursiva</span> ' : '');
+    h += '<li onclick="abrirItemLote(' + i + ')"><div class="nome"><b>' + esc(it.aluno.nome) + '</b><span class="lbl">' + esc(it.aluno.codigo + ' · ' + it.rotulo + (Object.keys(db.avaliacoes).length > 1 ? ' · ' + (a.disciplina || a.titulo || '') : '') + (calc.n ? ' · ' + calc.acertos + '/' + calc.n + ' acertos' : '')) + '</span><span>' + pills + '</span></div>' +
+      '<span class="nota">' + fmt(calc.nota) + '</span></li>';
+  });
+  h += '</ul></div><div class="stack">' +
+    (naoSalvas ? '<button class="btn acc" onclick="salvarLote()">Salvar ' + (naoSalvas > 1 ? 'as ' + naoSalvas + ' correções' : 'a correção') + '</button>' : '<div class="alerta" style="background:var(--okb);color:var(--ok)">Todas as correções foram salvas.</div>') +
+    '<button class="btn sec" onclick="fecharLote()">' + (naoSalvas ? 'Sair sem salvar' : 'Fechar') + '</button></div>';
+  $('#resConteudo').innerHTML = h; $('#res').classList.add('on'); $('#res').scrollTop = 0;
+}
+function abrirItemLote(i){ const it = lote.itens[i]; db.ativa = it.avId; mostrarResultado(it); }
+function salvarLote(){
+  const fora = lote.itens.filter(x => !x.salvo);
+  const ja = fora.filter(x => (db.avaliacoes[x.avId].resultados || {})[x.aluno.codigo]).length;
+  if(ja && !confirm(ja + ' prova(s) deste PDF já tinham correção salva. Substituir pela leitura do PDF?')) return;
+  fora.forEach(it => { gravarResultado(db.avaliacoes[it.avId], it.aluno, it.marcadas, it.status, it.disc); it.salvo = true; });
+  salvarDB(); toast(fora.length + (fora.length > 1 ? ' correções salvas' : ' correção salva'));
+  mostrarLote(); render();
+}
+function fecharLote(){
+  if(lote && lote.itens.some(x => !x.salvo) && !confirm('Sair sem salvar as correções que faltam?')) return;
+  lote = null; $('#res').classList.remove('on'); render();
+}
+
 // =================== resultado ===================
 let atual = null;
 function mostrarResultado(it){
@@ -603,7 +725,8 @@ function mostrarResultado(it){
       (al.disc || []).map((id, k) => '<label class="campo"><span>Questão ' + (n + k + 1) + ' · ref. ' + esc(id) + ' (vale ' + fmt(V.vdq) + ')</span><input type="text" inputmode="decimal" value="' + (it.disc[k] == null ? '' : it.disc[k]) + '" placeholder="nota" onchange="notaDisc(' + k + ', this.value)"></label>').join('') + '</div>' : '') +
     '<div class="card" id="cardSnap" style="display:none"><div class="lbl">Imagem lida</div><canvas class="snap" id="snap"></canvas></div>' +
     '<div class="stack">' +
-    (it.salvo ? '<button class="btn acc" onclick="salvarAtual(false)">Salvar alterações</button><button class="btn sec" onclick="fecharRes()">Voltar</button>' +
+    (it.lote ? '<button class="btn acc" onclick="salvarAtual(false)">' + (it.salvo ? 'Salvar alterações' : 'Salvar') + ' e voltar à lista</button><button class="btn sec" onclick="voltarLote()">Voltar à lista</button>' :
+     it.salvo ? '<button class="btn acc" onclick="salvarAtual(false)">Salvar alterações</button><button class="btn sec" onclick="fecharRes()">Voltar</button>' +
                 '<button class="btn sec" style="color:var(--bad)" onclick="excluirAtual()">Excluir esta correção</button>'
               : '<button class="btn acc" onclick="salvarAtual(true)">Salvar e próxima</button><button class="btn sec" onclick="salvarAtual(false)">Salvar</button>' +
                 '<button class="btn sec" onclick="fecharRes(true)">Descartar e ler de novo</button>') + '</div>';
@@ -641,21 +764,27 @@ function notaDisc(k, v){
   mostrarResultado(atual);
 }
 function fecharPicker(){ $('#picker').classList.remove('on'); }
-function salvarAtual(proxima){
-  const a = av(), al = atual.aluno, calc = calcular(a, al, atual.marcadas, atual.disc);
+function gravarResultado(a, al, marcadas, status, disc){
+  const calc = calcular(a, al, marcadas, disc);
   a.resultados = a.resultados || {};
-  a.resultados[al.codigo] = {marcadas: atual.marcadas, status: atual.status, acertos: calc.acertos, n: calc.n, nota: calc.nota,
-    pendencias: atual.status.filter(s => s !== 'ok' && s !== 'manual').length, quando: new Date().toISOString()};
-  if(atual.disc && atual.disc.length) Object.assign(a.resultados[al.codigo], {disc: atual.disc.slice(), notaObj: calc.notaObj, notaDisc: calc.notaDisc, faltaDisc: calc.faltaDisc});
+  a.resultados[al.codigo] = {marcadas: marcadas.slice(), status: status.slice(), acertos: calc.acertos, n: calc.n, nota: calc.nota,
+    pendencias: status.filter(s => s !== 'ok' && s !== 'manual').length, quando: new Date().toISOString()};
+  if(disc && disc.length) Object.assign(a.resultados[al.codigo], {disc: disc.slice(), notaObj: calc.notaObj, notaDisc: calc.notaDisc, faltaDisc: calc.faltaDisc});
+  return calc;
+}
+function salvarAtual(proxima){
+  const a = av(), al = atual.aluno, calc = gravarResultado(a, al, atual.marcadas, atual.status, atual.disc);
   salvarDB(); toast('Salvo: ' + al.nome + ' — nota ' + fmt(calc.nota));
+  if(atual.lote){ atual.salvo = true; render(); mostrarLote(); return; }
   $('#res').classList.remove('on'); render();
   if(proxima) abrirCamera();
 }
+function voltarLote(){ mostrarLote(); }
 function excluirAtual(){
   if(!confirm('Excluir a correção de ' + atual.aluno.nome + '?')) return;
   delete av().resultados[atual.aluno.codigo]; salvarDB(); fecharRes(); render();
 }
-function fecharRes(lerDeNovo){ $('#res').classList.remove('on'); if(lerDeNovo) abrirCamera(); }
+function fecharRes(lerDeNovo){ if(atual && atual.lote) return mostrarLote(); $('#res').classList.remove('on'); if(lerDeNovo) abrirCamera(); }
 
 let tt = null;
 function toast(m){ const t = $('#toast'); t.textContent = m; t.classList.add('on'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('on'), 2600); }

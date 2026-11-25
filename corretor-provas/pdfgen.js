@@ -236,7 +236,7 @@
       if (!isFinite(V.total)) V.total = +av.valor_total || 10;
       var valor = V.vq;
       var discs = (al.disc || []).map(function (id) { return banco[id]; }).filter(Boolean);
-      var y = cabecalhoImg(doc, av.cabecalho, M, av);
+      var y = cabecalhoImg(doc, typeof root.cabecalhoDe === 'function' ? root.cabecalhoDe(av) : av.cabecalho, M, av);
       // quadro do aluno
       var xL = M + 4, xR = M + CW - 4, CINZAL = [120, 126, 140];
       function caixa(yy, h) { cor(doc, 'Fill', [241, 244, 250]); cor(doc, 'Draw', LINHA); doc.setLineWidth(0.25); doc.roundedRect(M, yy, CW, h, 2, 2, 'FD'); }

@@ -41,8 +41,8 @@ function renderInicio(){
   let h = '<div class="ola"><div class="lbl">' + esc(dataHoje.charAt(0).toUpperCase() + dataHoje.slice(1)) + '</div><h2>' + saud + (pn ? ', ' + esc(pn) : '') + '!</h2></div>';
   if(!lista.length){
     h += '<div class="card"><h2>Comece por aqui</h2><ol class="passos"><li>Cadastre suas turmas (a lista de alunos fica salva para as próximas provas).</li><li>Crie uma avaliação com curso, disciplina e data.</li><li>Envie o banco de questões e escolha a turma.</li>' +
-         '<li>Gere as provas: cada aluno recebe uma prova diferente, já com o cabeçalho da UNIFADAP.</li><li>Depois da prova, corrija as folhas pela câmera do celular.</li></ol>' +
-         '<div class="stack" style="margin-top:12px"><button class="btn acc" onclick="novaDoPainel()">+ Nova avaliação</button><button class="btn sec" onclick="carregarDemo()">Ver um exemplo pronto</button>' + botaoInstalar('btn sec') + '</div></div>' + blocoTurmas() +
+         '<li>Gere as provas: cada aluno recebe uma prova diferente, já com o cabeçalho da instituição (o da UNIFADAP vem pronto; outro pode ser enviado uma vez só).</li><li>Depois da prova, corrija as folhas pela câmera do celular.</li></ol>' +
+         '<div class="stack" style="margin-top:12px"><button class="btn acc" onclick="novaDoPainel()">+ Nova avaliação</button><button class="btn sec" onclick="carregarDemo()">Ver um exemplo pronto</button>' + botaoInstalar('btn sec') + '</div></div>' + blocoTurmas() + blocoCabecalho() +
          '<p class="lbl" style="margin-top:6px;text-align:center;opacity:.7">Versão ' + VERSAO_APP + '</p>';
     $('#v-inicio').innerHTML = h; return;
   }
@@ -100,6 +100,7 @@ function renderInicio(){
     h += '<h3 class="sec">Rascunhos</h3>';
     semData.forEach(a => { h += '<div class="card avcard" onclick="abrirAv(\'' + a.id + '\')"><b>' + nomeAv(a) + '</b><div class="lbl">' + subAv(a) + ' · sem data</div></div>'; });
   }
+  h += blocoCabecalho();
   h += '<p class="lbl" style="margin-top:14px;text-align:center">' + (sessao ? '<span id="syncInfo">' + textoSync() + '</span> · as suas avaliações aparecem em qualquer aparelho em que você entrar.' : 'Os dados ficam só neste aparelho. Use "Exportar backup" em cada avaliação para passar para outro.') + '</p>' +
        '<p class="lbl" style="margin-top:6px;text-align:center;opacity:.7">Versão ' + VERSAO_APP + '</p>';
   $('#v-inicio').innerHTML = h;
@@ -170,16 +171,16 @@ function renderEditor(){
     check('embaralharQuestoes', 'Embaralhar a ordem das questões', a.config.embaralharQuestoes) +
     check('frenteVerso', 'Impressão frente e verso (cada prova com nº par de páginas)', a.config.frenteVerso) +
     check('mostrarTema', 'Mostrar o tema/aula ao lado do número da questão', a.config.mostrarTema) + '</div>';
-  // 2. cabeçalho
+  // 2. cabeçalho (o da instituição é enviado uma vez só, na página inicial)
   const anoCab = (a.data ? a.data.slice(0, 4) : String(new Date().getFullYear()));
-  h += '<div class="card"><div class="passo">2</div><h2>Cabeçalho</h2>' +
-    (a.cabecalho ? '<img class="cab" src="' + a.cabecalho.dataUrl + '" alt="Cabeçalho"><p class="lbl" style="margin-top:6px">Cabeçalho próprio enviado para esta avaliação.</p>'
-     : '<div class="cabpad"><img src="img/logo_unifadap.png" alt="UNIFADAP"><div><b>' + esc([(a.curso || 'CURSO').toUpperCase(), anoCab].join(' – ')) + '</b><b>' +
-       esc(([a.titulo, a.chamada].filter(Boolean).join(' – ') || 'Tipo de prova').toUpperCase()) + '</b><b><i>' + esc((a.disciplina || 'DISCIPLINA').toUpperCase()) + '</i></b></div></div>' +
-       '<p class="muted" style="margin-top:6px">Cabeçalho padrão da UNIFADAP, preenchido sozinho com os dados do passo 1. Não precisa enviar nada.</p>') +
-    '<div class="row" style="margin-top:10px">' +
-    (a.cabecalho ? '<button class="btn sec" onclick="setAv(\'cabecalho\', null)">Voltar ao padrão UNIFADAP</button><button class="btn sec" onclick="$(\'#arqCab\').click()">Trocar</button>'
-     : '<button class="btn sec" onclick="$(\'#arqCab\').click()">Usar outro cabeçalho (imagem ou PDF)</button>') + '</div></div>';
+  const cabPadrao = '<div class="cabpad"><img src="img/logo_unifadap.png" alt="UNIFADAP"><div><b>' + esc([(a.curso || 'CURSO').toUpperCase(), anoCab].join(' – ')) + '</b><b>' +
+       esc(([a.titulo, a.chamada].filter(Boolean).join(' – ') || 'Tipo de prova').toUpperCase()) + '</b><b><i>' + esc((a.disciplina || 'DISCIPLINA').toUpperCase()) + '</i></b></div></div>';
+  h += '<div class="card"><div class="passo">2</div><h2>Cabeçalho</h2>';
+  if(a.cabecalho) h += '<img class="cab" src="' + a.cabecalho.dataUrl + '" alt="Cabeçalho"><p class="lbl" style="margin-top:6px">Esta avaliação tem um cabeçalho próprio, enviado antes.</p>' +
+    '<div class="row" style="margin-top:10px"><button class="btn sec" onclick="setAv(\'cabecalho\', null)">Usar o cabeçalho da instituição</button></div>';
+  else if(db.cabecalhoInst) h += '<img class="cab" src="' + db.cabecalhoInst.dataUrl + '" alt="Cabeçalho da instituição"><p class="muted" style="margin-top:6px">Cabeçalho da instituição, o mesmo em todas as provas. Para trocar, use o quadro <b>Cabeçalho da instituição</b> na página inicial.</p>';
+  else h += cabPadrao + '<p class="muted" style="margin-top:6px">Cabeçalho padrão da UNIFADAP, preenchido sozinho com os dados do passo 1. Não precisa enviar nada. Se quiser outro, envie uma vez só no quadro <b>Cabeçalho da instituição</b> da página inicial.</p>';
+  h += '</div>';
   // texto-base / estudo de caso (opcional)
   const tb = a.textoBase || {};
   h += '<div class="card"><h2>Texto-base ou estudo de caso <span class="lbl">(opcional)</span></h2>' +
@@ -289,6 +290,26 @@ async function onCabecalho(inp){
   toast('Lendo o cabeçalho…');
   try { av().cabecalho = await lerCabecalho(f); salvarDB(); render(); toast('Cabeçalho pronto'); }
   catch(e){ alert('Não consegui ler o cabeçalho.\n' + e.message); }
+}
+async function onCabecalhoInst(inp){
+  const f = inp.files[0]; inp.value = ''; if(!f) return;
+  toast('Lendo o cabeçalho…');
+  try { db.cabecalhoInst = await lerCabecalho(f); salvarDB(); render(); toast('Cabeçalho salvo para todas as provas'); }
+  catch(e){ alert('Não consegui ler o cabeçalho.\n' + e.message); }
+}
+function cabecalhoPadraoInst(){
+  if(!confirm('Voltar ao cabeçalho padrão da UNIFADAP em todas as provas?')) return;
+  db.cabecalhoInst = null; salvarDB(); render(); toast('Cabeçalho padrão da UNIFADAP');
+}
+// quadro da página inicial: cabeçalho enviado uma vez e usado em todas as provas
+function blocoCabecalho(){
+  const c = db.cabecalhoInst;
+  return '<h3 class="sec" style="margin:18px 0 8px">Cabeçalho da instituição</h3><div class="card">' +
+    (c ? '<img class="cab" src="' + c.dataUrl + '" alt="Cabeçalho da instituição" style="margin-top:0"><p class="lbl" style="margin-top:6px">Usado em todas as provas. Para trocar, envie outro.</p>'
+       : '<div class="cabpad"><img src="img/logo_unifadap.png" alt="UNIFADAP"><div><b>CURSO – ANO</b><b>TÍTULO – CHAMADA</b><b><i>DISCIPLINA</i></b></div></div>' +
+         '<p class="lbl" style="margin-top:6px">Hoje as provas saem com o cabeçalho padrão da UNIFADAP, preenchido com os dados de cada avaliação. Se quiser outro, envie uma imagem ou PDF uma vez só: ele fica salvo e vale para todas as provas.</p>') +
+    '<div class="row" style="margin-top:10px"><button class="btn sec" onclick="$(\'#arqCabInst\').click()">' + (c ? 'Trocar cabeçalho' : 'Enviar cabeçalho (imagem ou PDF)') + '</button>' +
+    (c ? '<button class="btn sec" onclick="cabecalhoPadraoInst()">Voltar ao padrão UNIFADAP</button>' : '') + '</div></div>';
 }
 async function onBanco(inp){
   const f = inp.files[0]; inp.value = ''; if(!f) return;

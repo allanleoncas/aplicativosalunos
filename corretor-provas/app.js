@@ -7,7 +7,7 @@ const LAYOUTS = {
     "bolhas":{"blocos":[{"x0":22,"y0":33},{"x0":84,"y0":33}],"porBloco":5,"dx":9,"dy":6.5,"raio":2.5,"letras":"ABCDE","max_questoes":10}}
 };
 const MAXQ = 10;
-const VERSAO_APP = '20261125c'; // mude a cada publicação para o navegador não usar arquivos antigos
+const VERSAO_APP = '20261125d'; // mude a cada publicação para o navegador não usar arquivos antigos
 const LETRAS = 'ABCDE';
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -271,6 +271,10 @@ function linhasDeTexto(t){
     return m ? [m[1], m[2]] : [l];
   });
 }
+
+// cabeçalho usado na prova: o próprio da avaliação (avaliações antigas), senão o da instituição (enviado uma vez,
+// na página inicial, em db.cabecalhoInst); null = cabeçalho padrão UNIFADAP desenhado pelo app
+function cabecalhoDe(a){ return (a && a.cabecalho) || db.cabecalhoInst || null; }
 
 // cabeçalho: imagem ou PDF, recortando as margens brancas
 async function lerCabecalho(arquivo){

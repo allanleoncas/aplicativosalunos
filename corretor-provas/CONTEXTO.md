@@ -80,6 +80,13 @@ Também há um **exemplo de demonstração** (avaliação `DEMO`, 3 alunos) e o 
 - Tela **PDF lido** (`mostrarLote()`): lista os alunos com nota e avisos (p/ conferir, já corrigida, repetida, falta o nome, falta nota discursiva). Tocar abre a tela de resultado normal ("Salvar e voltar à lista"); **Salvar as N correções** grava todas (`gravarResultado()`, usado também por `salvarAtual()`). O `omr.js` e os layouts não mudaram.
 - Testado: 2 PDFs simulados (18 páginas, 9 alunos; 150, 200 e 300 dpi, giro de até 2,5°, uma folha de cabeça para baixo, uma escura, uma questão em branco e uma dupla) → 9/9 leituras exatas, 9/9 notas exatas, ~24 s no total; fotos OMR1 90/90 e OMR2 6/6 continuam certas. Scripts: `testes/escanear.py` e `testes/e2e_pdf.py`.
 
+## 4f. Cabeçalho da instituição salvo à parte (25/11/2026, versão 20261125d, só na versão do GitHub Pages)
+
+- Pedido do professor: as provas são da mesma instituição, então o cabeçalho é enviado **uma vez só**, no quadro **Cabeçalho da instituição** da página inicial (`blocoCabecalho()` em `ui.js`), e vale para todas as provas. Fica em `db.cabecalhoInst` ({dataUrl, tipo, w, h}); `null` = cabeçalho padrão UNIFADAP. Botões: *Enviar/Trocar cabeçalho* e *Voltar ao padrão UNIFADAP*.
+- O PDF usa `cabecalhoDe(a)` (`app.js`): o cabeçalho próprio da avaliação (`a.cabecalho`, só avaliações antigas) ou, se não houver, o da instituição. O passo 2 da avaliação só mostra o cabeçalho que será usado; avaliações antigas com cabeçalho próprio ganham o botão *Usar o cabeçalho da instituição*. Não há mais envio de cabeçalho dentro da avaliação.
+- O backup (.json) de uma avaliação não leva o cabeçalho da instituição: em outro aparelho, enviar de novo na página inicial.
+- Testado (Playwright): envio na página inicial, prova gerada com o cabeçalho enviado (PDF conferido), 5/5 correções exatas, recarregar mantém o cabeçalho, avaliação antiga com cabeçalho próprio continua com o dela.
+
 ## 5. Folha de respostas e leitura óptica
 
 **QR code**: `VERSÃO|id da avaliação|código do aluno|nº de questões` (ex.: `OMR2|AK3F9QZ1|P07|8`). Nunca contém as respostas; o gabarito fica só no aparelho do professor.

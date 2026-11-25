@@ -4,7 +4,7 @@
  * - A API (api/) nunca é guardada: os dados vão e voltam direto do servidor.
  * Ao mudar este arquivo, aumente VERSAO.
  */
-const VERSAO = 'simulapro-v10';
+const VERSAO = 'simulapro-v11';
 const ESSENCIAIS = ['./', './index.html', './apresentacao.html', './app.js', './conta.js', './ui.js', './turmas.js', './trilhas.js', './omr.js', './pdfgen.js', './analises.js', './pdfanalise.js', './logo.js',
   './lib/jsQR.js', './lib/jspdf.umd.min.js', './lib/qrcode.js', './img/logo_unifadap.png',
   './manifest.webmanifest', './icon-192.png', './icon-512.png'];

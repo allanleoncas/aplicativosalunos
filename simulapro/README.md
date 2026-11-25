@@ -16,6 +16,7 @@ monta a prova no computador e corrige pela câmera do celular.
 |---|---|
 | `apresentacao.html` | Página pública de apresentação, que abre em allanleon.com.br/SimulaPro/ (botão *Entrar* leva ao app; quem já entrou no aparelho vai direto ao app; o botão *Sou aluno* aparece sozinho quando existir `aluno.html`) |
 | `index.html`, `*.js`, `lib/`, `img/` | O app (o mesmo que roda no celular e no computador) |
+| `analises.js`, `pdfanalise.js` | Análises de desempenho: acerto por questão, tema e competência, boletim do aluno, evolução entre provas e painel do curso (calculadas no aparelho a partir das correções) |
 | `api/` | O servidor em PHP: login, cadastro de professores e gravação dos dados |
 | `.htaccess` | Regras da Hostinger (HTTPS, câmera, bloqueio de pastas internas) |
 | `redirecionar-minusculas/` | Vira a pasta `simulapro/` no servidor e leva quem digita em minúsculas para `/SimulaPro/` |

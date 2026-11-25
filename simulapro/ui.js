@@ -19,6 +19,7 @@ function render(){
   if(abaAtual === 'corrigir') renderCorrigir();
   if(abaAtual === 'turma') renderTurma();
   if(abaAtual === 'admin') renderAdmin();
+  if(abaAtual === 'desempenho') renderDesempenho();
 }
 
 // =================== painel inicial ===================
@@ -58,6 +59,7 @@ function renderInicio(){
        '<button class="btn" onclick="irCorrigir()">Corrigir provas</button></div>';
   if(sessao && sessao.usuario.papel === 'admin') h += '<div class="card avcard" onclick="adminLista=null;aba(\'admin\')"><div class="row" style="align-items:center"><div style="flex:1"><b>Administração</b><div class="lbl">Professores, liberação de acesso e uso do app</div></div><span class="lbl">›</span></div></div>';
   if(botaoInstalar()) h += '<div style="margin:-4px 0 14px">' + botaoInstalar('btn sec') + '</div>';
+  h += cartaoDesempenho();
   h += blocoTurmas() + blocoTrilhas();
   // próximas provas
   const prox = lista.filter(a => a.data && a.data >= hoje).sort((x, y) => x.data.localeCompare(y.data));
@@ -546,8 +548,8 @@ function renderTurma(){
   if(!a || !g.length){ $('#v-turma').innerHTML = h + '<div class="vazio">' + (exameGerado(a) ? 'Nenhuma prova corrigida ainda. No exame sem nome, cada aluno aparece aqui depois de corrigido.' : 'Nenhuma prova gerada nesta avaliação.') + '</div></div>'; return; }
   const res = a.resultados || {};
   h += '<div class="row" style="align-items:center;margin-top:6px"><h2 style="margin:0">Turma (' + Object.keys(res).length + '/' + g.length + ')</h2></div>' +
-    '<div class="row" style="margin-top:10px"><button class="btn small sec" onclick="baixarRelatorio()">Relatório (PDF)</button><button class="btn small sec" onclick="exportarCSV()">Planilha (CSV)</button></div>' +
-    '<input type="text" id="busca" placeholder="Buscar aluno" oninput="filtrarTurma()" style="margin-top:12px"><ul class="lista" id="lista"></ul></div>';
+    '<div class="row" style="margin-top:10px"><button class="btn small sec" onclick="baixarRelatorio()">Relatório (PDF)</button><button class="btn small sec" onclick="exportarCSV()">Planilha (CSV)</button></div></div>' +
+    blocoAnalise(a) + '<div class="card"><h2>Alunos</h2><input type="text" id="busca" placeholder="Buscar aluno" oninput="filtrarTurma()" style="margin-top:8px"><ul class="lista" id="lista"></ul></div>';
   $('#v-turma').innerHTML = h; filtrarTurma();
 }
 function filtrarTurma(){

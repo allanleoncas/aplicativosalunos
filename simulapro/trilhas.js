@@ -7,6 +7,7 @@
 
 const TR_API = 'api/trilha.php';
 let trilhas = null, trilhasErro = '', trilhaAberta = null, trilhaDados = null;
+const trilhaDetalhes = {}; // id -> dados completos (trilha_ver), para a tela de Desempenho
 
 async function apiTrilha(acao, dados = {}){
   const r = await fetch(TR_API, {method: 'POST', headers: {'Content-Type': 'application/json',
@@ -38,7 +39,11 @@ function blocoTrilhas(){
   return h + '</div>';
 }
 async function carregarTrilhas(){
-  try { trilhas = (await apiTrilha('trilha_listar')).trilhas; trilhasErro = ''; }
+  try {
+    trilhas = (await apiTrilha('trilha_listar')).trilhas; trilhasErro = '';
+    // detalhes de cada trilha (notas por rodada) para a evolução na tela de Desempenho
+    await Promise.all(trilhas.map(t => apiTrilha('trilha_ver', {id: t.id}).then(D => { trilhaDetalhes[t.id] = D; }).catch(() => {})));
+  }
   catch(e){ trilhasErro = e.status ? e.message : 'Sem internet: as trilhas aparecem quando o aparelho estiver conectado.'; trilhas = null; }
   if(abaAtual === 'inicio' && $('#blocoTrilhas')) render();
 }
@@ -109,7 +114,7 @@ async function criarTrilha(){
 async function abrirTrilha(id){
   trilhaAberta = id; $('#res').classList.add('on');
   $('#resConteudo').innerHTML = '<button class="link" onclick="fecharTrilha()">‹ Início</button><div class="card" style="margin-top:8px"><p class="muted">Carregando a trilha…</p></div>';
-  try { trilhaDados = await apiTrilha('trilha_ver', {id}); renderTrilha(); $('#res').scrollTop = 0; }
+  try { trilhaDados = trilhaDetalhes[id] = await apiTrilha('trilha_ver', {id}); renderTrilha(); $('#res').scrollTop = 0; }
   catch(e){ $('#resConteudo').innerHTML = '<button class="link" onclick="fecharTrilha()">‹ Início</button><div class="card" style="margin-top:8px"><p>' + esc(e.status ? e.message : 'Sem internet. A trilha fica no servidor: conecte o aparelho e tente de novo.') + '</p></div>'; }
 }
 function fecharTrilha(){ trilhaAberta = null; trilhaDados = null; trilhas = null; fecharRes(); render(); }
@@ -191,7 +196,7 @@ function verAlunoTrilha(aid){
 async function mudarAlunoTrilha(aid, m, pergunta){
   if(pergunta && !confirm(pergunta)) return;
   fecharFolha();
-  try { await apiTrilha('trilha_mudar', {id: trilhaAberta, ...m}); trilhaDados = await apiTrilha('trilha_ver', {id: trilhaAberta}); renderTrilha(); if(m.novoCodigo) verAlunoTrilha(aid); }
+  try { await apiTrilha('trilha_mudar', {id: trilhaAberta, ...m}); trilhaDados = trilhaDetalhes[trilhaAberta] = await apiTrilha('trilha_ver', {id: trilhaAberta}); renderTrilha(); if(m.novoCodigo) verAlunoTrilha(aid); }
   catch(e){ alert(e.message); }
 }
 async function incluirDaTurma(){
@@ -200,23 +205,23 @@ async function incluirDaTurma(){
   const novos = t.alunos.filter(x => !ja.has(norm(x.nome)));
   if(!novos.length) return toast('Todos os alunos da turma já estão na trilha');
   if(!confirm('Incluir ' + novos.length + ' aluno(s) novo(s) da turma "' + (t.nome || 'Turma') + '"?\n' + novos.slice(0, 10).map(x => x.nome).join('\n'))) return;
-  try { const r = await apiTrilha('trilha_mudar', {id: trilhaAberta, incluir: novos.map(x => ({nome: x.nome, ra: x.ra || ''}))}); toast(r.msg); trilhaDados = await apiTrilha('trilha_ver', {id: trilhaAberta}); renderTrilha(); }
+  try { const r = await apiTrilha('trilha_mudar', {id: trilhaAberta, incluir: novos.map(x => ({nome: x.nome, ra: x.ra || ''}))}); toast(r.msg); trilhaDados = trilhaDetalhes[trilhaAberta] = await apiTrilha('trilha_ver', {id: trilhaAberta}); renderTrilha(); }
   catch(e){ alert(e.message); }
 }
 async function trocarBancoTrilha(B, nome){
   if(!confirm('Trocar o banco desta trilha pelas ' + B.length + ' questões de "' + nome + '"? Vale para as próximas rodadas.')) return;
-  try { await apiTrilha('trilha_mudar', {id: trilhaAberta, banco: bancoParaServidor(B)}); toast('Banco trocado'); trilhaDados = await apiTrilha('trilha_ver', {id: trilhaAberta}); renderTrilha(); }
+  try { await apiTrilha('trilha_mudar', {id: trilhaAberta, banco: bancoParaServidor(B)}); toast('Banco trocado'); trilhaDados = trilhaDetalhes[trilhaAberta] = await apiTrilha('trilha_ver', {id: trilhaAberta}); renderTrilha(); }
   catch(e){ alert(e.message); }
 }
 async function mudarRodadasTrilha(){
   const v = prompt('Quantas rodadas a trilha deve ter? (hoje: ' + trilhaDados.trilha.rodadas + ')', trilhaDados.trilha.rodadas);
   if(v == null) return;
-  try { await apiTrilha('trilha_mudar', {id: trilhaAberta, rodadas: parseInt(v, 10) || 0}); trilhaDados = await apiTrilha('trilha_ver', {id: trilhaAberta}); renderTrilha(); }
+  try { await apiTrilha('trilha_mudar', {id: trilhaAberta, rodadas: parseInt(v, 10) || 0}); trilhaDados = trilhaDetalhes[trilhaAberta] = await apiTrilha('trilha_ver', {id: trilhaAberta}); renderTrilha(); }
   catch(e){ alert(e.message); }
 }
 async function excluirTrilha(){
   if(!confirm('Excluir a trilha "' + trilhaDados.trilha.nome + '"? Os códigos param de funcionar e as respostas dos alunos são apagadas do servidor.')) return;
-  try { await apiTrilha('trilha_excluir', {id: trilhaAberta}); toast('Trilha excluída'); fecharTrilha(); }
+  try { await apiTrilha('trilha_excluir', {id: trilhaAberta}); delete trilhaDetalhes[trilhaAberta]; toast('Trilha excluída'); fecharTrilha(); }
   catch(e){ alert(e.message); }
 }
 
@@ -314,3 +319,26 @@ async function pdfRelatorioTrilha(){
     baixarBlob(doc.output('blob'), nomeArq(T.nome) + '_relatorio.pdf');
   });
 }
+
+// ---------- rodadas da trilha na evolução (tela de Desempenho, analises.js)
+function pontosTrilhas(){
+  const pts = [];
+  Object.values(trilhaDetalhes).forEach(D => {
+    const T = D.trilha, R = D.resp || {};
+    T.calendario.forEach(c => {
+      if(c.estado === 'futura') return;
+      const temas = {}, alunos = [];
+      D.alunos.forEach(a => {
+        const r = (R[c.k] || {})[a.id]; if(!r || !r.enviado) return;
+        alunos.push({chave: chaveAluno(a), nome: a.nome, ra: a.ra || '', nota10: nota10(r.acertos, r.n)});
+        r.qs.forEach((qid, i) => { const q = D.banco[qid]; if(!q) return; const x = temas[q.tema] = temas[q.tema] || {nome: q.tema, n: 0, soma: 0}; x.n++; if(r.certas[i]) x.soma++; });
+      });
+      if(!alunos.length) return;
+      pts.push({id: T.id + ':' + c.k, tipo: 'Rodada', titulo: T.nome + ' · rodada ' + (c.k + 1), data: c.abre, curso: T.curso || '', disciplina: T.disciplina || '', turmaId: T.turmaId || '',
+        media10: alunos.reduce((s, x) => s + x.nota10, 0) / alunos.length, n: alunos.length,
+        temas: Object.values(temas).map(x => ({nome: x.nome, n: x.n, p: x.soma / x.n})), comps: [], alunos});
+    });
+  });
+  return pts;
+}
+window.addEventListener('DOMContentLoaded', () => { if(typeof registrarFonteEvolucao === 'function') registrarFonteEvolucao(pontosTrilhas); });

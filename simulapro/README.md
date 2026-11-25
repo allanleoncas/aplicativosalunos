@@ -14,6 +14,7 @@ monta a prova no computador e corrige pela câmera do celular.
 
 | Pasta/arquivo | Para que serve |
 |---|---|
+| `apresentacao.html` | Página pública de apresentação, que abre em allanleon.com.br/SimulaPro/ (botão *Entrar* leva ao app; quem já entrou no aparelho vai direto ao app; o botão *Sou aluno* aparece sozinho quando existir `aluno.html`) |
 | `index.html`, `*.js`, `lib/`, `img/` | O app (o mesmo que roda no celular e no computador) |
 | `api/` | O servidor em PHP: login, cadastro de professores e gravação dos dados |
 | `.htaccess` | Regras da Hostinger (HTTPS, câmera, bloqueio de pastas internas) |

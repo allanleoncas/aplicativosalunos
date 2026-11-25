@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SimulaPro · Provas, exames e simulados</title>
+<meta name="description" content="SimulaPro: provas bimestrais individuais em PDF, exames e simulados, correção pela câmera do celular ou por PDF escaneado e relatório de notas. Acesso para professores cadastrados.">
+<meta name="theme-color" content="#1F3864">
+<meta property="og:title" content="SimulaPro">
+<meta property="og:description" content="Provas, exames e simulados: da montagem da prova à nota final. Correção pela câmera do celular.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://allanleon.com.br/SimulaPro/">
+<meta property="og:image" content="https://allanleon.com.br/SimulaPro/icon-512.png">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231F3864'/%3E%3Ccircle cx='22' cy='24' r='7' fill='%23FF3B5F'/%3E%3Ccircle cx='42' cy='24' r='7' fill='none' stroke='%23fff' stroke-width='3'/%3E%3Ccircle cx='22' cy='44' r='7' fill='none' stroke='%23fff' stroke-width='3'/%3E%3Ccircle cx='42' cy='44' r='7' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<script>
+/* Professor que já entrou neste aparelho (ou abriu o app instalado) vai direto para o app.
+   Para ver esta página mesmo assim: apresentacao.html?sobre */
+(function(){
+  if(/[?&]sobre\b/.test(location.search)) return;
+  var logado = false;
+  try { logado = !!JSON.parse(localStorage.getItem('cp:sessao') || 'null'); } catch(e){}
+  var instalado = window.matchMedia && matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  if(logado || instalado) location.replace('index.html' + location.hash);
+})();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --fundo:#f1f3f8;--papel:#fff;--tinta:#141a2b;--suave:#5d6578;--linha:#dde2ec;
+  --azul:#1F3864;--azul2:#2E5FA3;--destaque:#FF3B5F;--destaque2:#e0284c;
+  --escuro:#1F3864;--escuro-tinta:#eef1f8;--escuro-suave:#b9c5de;--ok:#16784a;--okb:#dcf2e6;
+}
+@media (prefers-color-scheme:dark){:root{
+  --fundo:#0e1220;--papel:#181e30;--tinta:#eef1f8;--suave:#9ba5bb;--linha:#2a3249;
+  --azul:#a9c2ee;--azul2:#8fb0e8;--escuro:#141b33;--escuro-suave:#a9b5cf;--ok:#5bd49b;--okb:#13301f;
+}}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;scroll-padding-top:72px}
+body{background:var(--fundo);color:var(--tinta);font:16px/1.6 Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--azul2)}
+.largura{max-width:1080px;margin:0 auto;padding:0 20px}
+h1,h2,h3{font-family:Fraunces,Georgia,"Times New Roman",serif;font-weight:600;line-height:1.15}
+h1{font-size:clamp(2.1rem,5.2vw,3.4rem);letter-spacing:-.01em}
+h2{font-size:clamp(1.6rem,3.4vw,2.2rem);margin-bottom:10px}
+h3{font-size:1.15rem;margin-bottom:4px}
+.sobretitulo{font-size:.8rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--destaque);margin-bottom:12px}
+.intro{color:var(--suave);max-width:40em;margin-bottom:28px}
+
+/* Topo */
+.topo{position:sticky;top:0;z-index:10;background:color-mix(in srgb,var(--fundo) 88%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--linha);padding-top:env(safe-area-inset-top,0px)}
+.topo-linha{display:flex;align-items:center;justify-content:space-between;height:62px;gap:14px}
+.marca{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--tinta);font-weight:700;font-size:1.1rem}
+.logo{width:36px;height:36px;border-radius:10px;background:#1F3864;display:grid;place-items:center;flex:none}
+.topo nav{display:flex;align-items:center;gap:22px}
+.topo nav a.link{color:var(--suave);text-decoration:none;font-size:.95rem;font-weight:500}
+.topo nav a.link:hover{color:var(--tinta)}
+
+/* Botões */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:13px 24px;border-radius:999px;font-weight:600;text-decoration:none;font-size:1rem;transition:transform .15s,background .15s;border:0;cursor:pointer}
+.btn:hover{transform:translateY(-1px)}
+.btn-destaque{background:var(--destaque);color:#fff}
+.btn-destaque:hover{background:var(--destaque2)}
+.btn-azul{background:#1F3864;color:#fff}
+.btn-linha{border:1.5px solid var(--linha);color:var(--tinta);background:transparent}
+.btn-pequeno{padding:8px 18px;font-size:.93rem}
+.botoes{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:30px}
+.aviso-acesso{display:flex;align-items:center;gap:8px;margin-top:16px;color:var(--suave);font-size:.92rem}
+.aviso-acesso svg{flex:none}
+[hidden]{display:none !important}
+
+/* Abertura */
+.abertura{padding:64px 0 72px}
+.abertura-grade{display:grid;grid-template-columns:1.25fr 1fr;gap:48px;align-items:center}
+.lead{font-size:1.16rem;color:var(--suave);max-width:33em;margin-top:18px}
+
+/* Folha de respostas desenhada */
+.folha{justify-self:end;width:100%;max-width:380px;background:#fff;color:#141a2b;border-radius:18px;padding:22px 22px 18px;box-shadow:0 18px 50px rgba(20,26,43,.16),0 2px 6px rgba(20,26,43,.08);position:relative;transform:rotate(1.5deg)}
+.folha-cab{display:flex;justify-content:space-between;align-items:center;gap:12px;border-bottom:1.5px solid #1F3864;padding-bottom:10px;margin-bottom:12px}
+.folha-cab b{font-size:.82rem;letter-spacing:.04em;color:#1F3864}
+.folha-cab small{display:block;font-size:.72rem;color:#5d6578}
+.qr{width:44px;height:44px;flex:none}
+.bolhas{display:grid;grid-template-columns:auto repeat(5,1fr);gap:7px 8px;align-items:center;font-size:.78rem}
+.bolhas .n{color:#5d6578;font-weight:600;text-align:right;padding-right:4px}
+.bolhas i{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;border:1.5px solid #9aa3b5;font-style:normal;font-size:.62rem;color:#9aa3b5;justify-self:center}
+.bolhas i.m{background:#141a2b;border-color:#141a2b;color:#141a2b}
+.folha-nota{display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:10px;border-top:1px dashed #dde2ec;font-size:.85rem;color:#5d6578}
+.folha-nota b{background:#dcf2e6;color:#16784a;border-radius:99px;padding:3px 12px;font-size:.95rem}
+.canto{position:absolute;width:12px;height:12px;background:#141a2b}
+.canto.a{top:8px;left:8px}.canto.b{top:8px;right:8px}.canto.c{bottom:8px;left:8px}.canto.d{bottom:8px;right:8px}
+
+/* Seções */
+.secao{padding:72px 0}
+.secao-papel{background:var(--papel);border-top:1px solid var(--linha);border-bottom:1px solid var(--linha)}
+.secao-escura{background:var(--escuro);color:var(--escuro-tinta)}
+.secao-escura h2{color:#fff}
+.secao-escura .intro{color:var(--escuro-suave)}
+
+.recursos{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.recurso{background:var(--fundo);border:1px solid var(--linha);border-radius:18px;padding:22px}
+.secao-papel .recurso{background:var(--fundo)}
+.recurso .ic{width:44px;height:44px;border-radius:12px;background:#1F3864;display:grid;place-items:center;margin-bottom:14px}
+.recurso p{color:var(--suave);font-size:.96rem}
+.selo{display:inline-block;margin-left:6px;padding:1px 9px;border-radius:99px;background:var(--destaque);color:#fff;font:600 .7rem Inter,system-ui,sans-serif;letter-spacing:.04em;vertical-align:3px;text-transform:uppercase}
+
+.passos{list-style:none;display:grid;grid-template-columns:repeat(3,1fr);gap:16px;counter-reset:p}
+.passos li{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);border-radius:18px;padding:22px;counter-increment:p}
+.passos li::before{content:counter(p);display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:var(--destaque);color:#fff;font-weight:700;margin-bottom:12px}
+.passos b{display:block;color:#fff;font-size:1.05rem;margin-bottom:4px}
+.passos span{color:var(--escuro-suave);font-size:.95rem}
+
+.acesso{display:grid;grid-template-columns:1.2fr 1fr;gap:36px;align-items:start}
+.acesso-caixa{background:var(--papel);border:1px solid var(--linha);border-radius:20px;padding:26px}
+.acesso-caixa h3{margin-bottom:8px}
+.acesso-caixa p{color:var(--suave)}
+.acesso-caixa .botoes{margin-top:20px}
+.lista-ok{list-style:none;margin-top:8px}
+.lista-ok li{position:relative;padding-left:28px;margin-top:10px;color:var(--suave)}
+.lista-ok li::before{content:"";position:absolute;left:0;top:4px;width:18px;height:18px;border-radius:50%;background:var(--okb) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2316784a' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center/12px no-repeat}
+.lista-ok b{color:var(--tinta)}
+
+.rodape{padding:34px 0 calc(34px + env(safe-area-inset-bottom,0px));color:var(--suave);font-size:.92rem}
+.rodape-linha{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px}
+
+@media (max-width:860px){
+  .recursos{grid-template-columns:repeat(2,1fr)}
+  .passos{grid-template-columns:1fr}
+  .acesso{grid-template-columns:1fr}
+}
+@media (max-width:760px){
+  .topo nav a.link{display:none}
+  .abertura{padding:40px 0 52px}
+  .abertura-grade{grid-template-columns:1fr;gap:40px}
+  .folha{justify-self:center;max-width:340px;transform:rotate(1deg)}
+  .secao{padding:52px 0}
+  .botoes .btn{flex:1 1 auto}
+}
+@media (max-width:560px){
+  .largura{padding:0 16px}
+  .recursos{grid-template-columns:1fr}
+  .lead{font-size:1.06rem}
+}
+</style>
+</head>
+<body>
+
+<header class="topo">
+  <div class="largura topo-linha">
+    <a class="marca" href="#inicio" aria-label="SimulaPro, início">
+      <span class="logo" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24"><circle cx="7" cy="8" r="3.4" fill="#FF3B5F"/><circle cx="17" cy="8" r="3.4" fill="none" stroke="#fff" stroke-width="1.6"/><circle cx="7" cy="17" r="3.4" fill="none" stroke="#fff" stroke-width="1.6"/><circle cx="17" cy="17" r="3.4" fill="#fff"/></svg></span>
+      SimulaPro
+    </a>
+    <nav>
+      <a class="link" href="#recursos">O que faz</a>
+      <a class="link" href="#como">Como funciona</a>
+      <a class="link" href="#acesso">Acesso</a>
+      <a class="btn btn-azul btn-pequeno" href="index.html">Entrar</a>
+    </nav>
+  </div>
+</header>
+
+<main id="inicio">
+  <section class="abertura">
+    <div class="largura abertura-grade">
+      <div>
+        <p class="sobretitulo">Provas · Exames · Simulados</p>
+        <h1>Da montagem da prova à nota final, no computador e no celular.</h1>
+        <p class="lead">O SimulaPro gera uma prova diferente para cada aluno, corrige a folha de respostas pela câmera do celular e entrega o relatório de notas da turma.</p>
+        <div class="botoes">
+          <a class="btn btn-destaque" href="index.html">Entrar como professor</a>
+          <a class="btn btn-linha" id="btnAluno" href="aluno.html" hidden>Sou aluno</a>
+          <a class="btn btn-linha" id="btnConhecer" href="#recursos">Conhecer o app</a>
+        </div>
+        <p class="aviso-acesso"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Acesso para professores cadastrados.</p>
+      </div>
+
+      <div class="folha" role="img" aria-label="Exemplo de folha de respostas corrigida, nota 7,0">
+        <span class="canto a"></span><span class="canto b"></span><span class="canto c"></span><span class="canto d"></span>
+        <div class="folha-cab">
+          <div><b>FOLHA DE RESPOSTAS</b><small>Prova P07 · Primeira chamada</small></div>
+          <svg class="qr" viewBox="0 0 21 21" shape-rendering="crispEdges" aria-hidden="true"><rect width="21" height="21" fill="#fff"/><path fill="#141a2b" d="M0 0h7v7H0zM14 0h7v7h-7zM0 14h7v7H0z"/><path fill="#fff" d="M1 1h5v5H1zM15 1h5v5h-5zM1 15h5v5H1z"/><path fill="#141a2b" d="M2 2h3v3H2zM16 2h3v3h-3zM2 16h3v3H2zM9 1h2v2H9zM8 4h1v3H8zM11 5h2v2h-2zM9 8h3v1H9zM8 10h2v2H8zM13 9h2v2h-2zM16 8h3v2h-3zM10 13h3v2h-3zM14 12h2v3h-2zM17 13h3v1h-3zM9 16h2v3H9zM12 17h3v2h-3zM16 16h2v4h-2zM19 18h2v2h-2zM1 9h3v2H1zM5 8h2v1H5z"/></svg>
+        </div>
+        <div class="bolhas" aria-hidden="true">
+          <span class="n">1</span><i>A</i><i class="m">B</i><i>C</i><i>D</i><i>E</i>
+          <span class="n">2</span><i>A</i><i>B</i><i>C</i><i class="m">D</i><i>E</i>
+          <span class="n">3</span><i class="m">A</i><i>B</i><i>C</i><i>D</i><i>E</i>
+          <span class="n">4</span><i>A</i><i>B</i><i>C</i><i>D</i><i class="m">E</i>
+          <span class="n">5</span><i>A</i><i>B</i><i class="m">C</i><i>D</i><i>E</i>
+          <span class="n">6</span><i>A</i><i class="m">B</i><i>C</i><i>D</i><i>E</i>
+          <span class="n">7</span><i>A</i><i>B</i><i>C</i><i class="m">D</i><i>E</i>
+          <span class="n">8</span><i class="m">A</i><i>B</i><i>C</i><i>D</i><i>E</i>
+        </div>
+        <div class="folha-nota"><span>Lida pela câmera</span><b>Nota 7,0</b></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="secao secao-papel" id="recursos">
+    <div class="largura">
+      <p class="sobretitulo">O que o SimulaPro faz</p>
+      <h2>Tudo o que a avaliação precisa, num lugar só</h2>
+      <p class="intro">Serve para qualquer curso e disciplina. O professor cuida das questões; o app cuida do resto.</p>
+      <div class="recursos">
+        <article class="recurso">
+          <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/></svg></div>
+          <h3>Provas bimestrais individuais</h3>
+          <p>A partir de um banco de questões, sorteia uma prova diferente para cada aluno, já em PDF, com cabeçalho da instituição, nome do aluno e campo de assinatura.</p>
+        </article>
+        <article class="recurso">
+          <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M4 19V9l8-5 8 5v10"/><path d="M9 19v-6h6v6"/></svg></div>
+          <h3>Exames e simulados</h3>
+          <p>Exames com provas sem nome, recuperação, segunda chamada e simulados no estilo ENADE, com questões objetivas e discursivas.</p>
+        </article>
+        <article class="recurso">
+          <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></div>
+          <h3>Correção pela câmera</h3>
+          <p>Aponte o celular para a folha de respostas e a nota aparece na hora. Também corrige um lote de folhas a partir do PDF escaneado.</p>
+        </article>
+        <article class="recurso">
+          <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></div>
+          <h3>Relatórios de notas</h3>
+          <p>Relatório da turma em PDF e notas em planilha, prontos assim que a correção termina, com o gabarito de cada prova para conferência.</p>
+        </article>
+        <article class="recurso">
+          <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="2" y="4" width="14" height="10" rx="1.5"/><path d="M6 18h6"/><rect x="17" y="8" width="5.5" height="12" rx="1.2"/></svg></div>
+          <h3>Computador e celular juntos</h3>
+          <p>Monte a prova no computador e corrija no celular: suas avaliações e turmas ficam guardadas na sua conta e aparecem nos dois.</p>
+        </article>
+        <article class="recurso">
+          <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M3 17l5-5 4 4 8-8"/><path d="M15 8h5v5"/></svg></div>
+          <h3>Trilha de estudos <span class="selo">Em breve</span></h3>
+          <p>Uma trilha quinzenal de questões para os alunos treinarem entre as provas, com acompanhamento do professor.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="secao secao-escura" id="como">
+    <div class="largura">
+      <p class="sobretitulo">Como funciona</p>
+      <h2>Três passos até a nota</h2>
+      <p class="intro">Sem gabarito na mão e sem digitar nota por nota.</p>
+      <ol class="passos">
+        <li><b>Monte a avaliação</b><span>Informe curso, disciplina e valor da prova, envie a planilha de questões e a lista de alunos.</span></li>
+        <li><b>Imprima as provas</b><span>O app gera um PDF com uma prova por aluno, frente e verso, com a folha de respostas no fim.</span></li>
+        <li><b>Corrija com o celular</b><span>Fotografe cada folha. A nota é calculada na hora e o relatório da turma fica pronto.</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="secao" id="acesso">
+    <div class="largura acesso">
+      <div>
+        <p class="sobretitulo">Acesso</p>
+        <h2>Feito para professores</h2>
+        <ul class="lista-ok">
+          <li><b>Só entra quem foi cadastrado.</b> Cada professor recebe usuário e senha do administrador; não há cadastro aberto.</li>
+          <li><b>Cada um vê só o que é seu.</b> As avaliações, turmas e notas de um professor não aparecem para os outros.</li>
+          <li><b>Dados guardados no servidor do SimulaPro.</b> O CPF dos alunos é mascarado ao importar a lista e o número completo nunca é guardado.</li>
+        </ul>
+      </div>
+      <div class="acesso-caixa">
+        <h3>Já tem usuário e senha?</h3>
+        <p>Entre com o usuário que você recebeu (por exemplo, nome.sobrenome).</p>
+        <div class="botoes"><a class="btn btn-destaque" href="index.html">Entrar no SimulaPro</a></div>
+        <p style="margin-top:18px;font-size:.93rem">Quer usar o SimulaPro com suas turmas? <a href="/#contato">Fale com o Prof. Allan Leon</a>.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="rodape">
+  <div class="largura rodape-linha">
+    <span>SimulaPro · criado pelo Prof. Dr. Allan Leon Casemiro da Silva (UNIFADAP, Tupã/SP)</span>
+    <a href="/">allanleon.com.br</a>
+  </div>
+</footer>
+
+<script>
+/* O botão "Sou aluno" aparece sozinho quando a área do aluno (aluno.html) for publicada. */
+fetch('aluno.html', {method: 'HEAD', cache: 'no-store'}).then(function(r){
+  if(r.ok){ document.getElementById('btnAluno').hidden = false; document.getElementById('btnConhecer').hidden = true; }
+}).catch(function(){});
+</script>
+</body>
+</html>

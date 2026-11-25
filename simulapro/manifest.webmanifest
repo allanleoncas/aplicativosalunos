@@ -4,7 +4,7 @@
   "description": "Provas, exames e simulados: provas individuais em PDF, correção pela câmera do celular e relatório de notas.",
   "id": "./",
   "lang": "pt-BR",
-  "start_url": "./",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",

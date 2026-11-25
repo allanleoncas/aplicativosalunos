@@ -1,7 +1,8 @@
 # SimulaPro — regras para a hospedagem Apache/LiteSpeed (Hostinger), pasta public_html/SimulaPro
 # O GitHub Pages ignora este arquivo.
 
-DirectoryIndex index.html
+# allanleon.com.br/SimulaPro/ abre a página de apresentação; o app fica em index.html
+DirectoryIndex apresentacao.html index.html
 Options -Indexes
 
 <IfModule mod_rewrite.c>
@@ -26,7 +27,7 @@ Options -Indexes
   # Libera a câmera nesta pasta (caso o site principal a bloqueie)
   Header always set Permissions-Policy "camera=(self)"
   # Sempre buscar a versão nova da página e do service worker
-  <FilesMatch "^(index\.html|sw\.js|manifest\.webmanifest)$">
+  <FilesMatch "^(index\.html|apresentacao\.html|sw\.js|manifest\.webmanifest)$">
     Header set Cache-Control "no-cache"
   </FilesMatch>
 </IfModule>

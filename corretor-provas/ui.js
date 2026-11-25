@@ -10,6 +10,7 @@ function aba(v){
   render(); window.scrollTo(0, 0);
 }
 function render(){
+  migrarTurmas();
   const a = av();
   Object.values(db.avaliacoes).forEach(atualizarValores);
   $('#subtitulo').textContent = a ? [a.disciplina, a.titulo].filter(Boolean).join(' · ') || 'Avaliação' : 'Nenhuma avaliação selecionada';
@@ -39,9 +40,9 @@ function renderInicio(){
   const pn = String(db.professor || '').replace(/\b(prof|profa|profª|professor|professora|dr|dra|me|ma|msc|esp)\.?\s+/gi, '').trim().split(/\s+/)[0] || '';
   let h = '<div class="ola"><div class="lbl">' + esc(dataHoje.charAt(0).toUpperCase() + dataHoje.slice(1)) + '</div><h2>' + saud + (pn ? ', ' + esc(pn) : '') + '!</h2></div>';
   if(!lista.length){
-    h += '<div class="card"><h2>Comece por aqui</h2><ol class="passos"><li>Crie uma avaliação com curso, disciplina e data.</li><li>Envie o banco de questões e a lista de alunos.</li>' +
+    h += '<div class="card"><h2>Comece por aqui</h2><ol class="passos"><li>Cadastre suas turmas (a lista de alunos fica salva para as próximas provas).</li><li>Crie uma avaliação com curso, disciplina e data.</li><li>Envie o banco de questões e escolha a turma.</li>' +
          '<li>Gere as provas: cada aluno recebe uma prova diferente, já com o cabeçalho da UNIFADAP.</li><li>Depois da prova, corrija as folhas pela câmera do celular.</li></ol>' +
-         '<div class="stack" style="margin-top:12px"><button class="btn acc" onclick="novaDoPainel()">+ Nova avaliação</button><button class="btn sec" onclick="carregarDemo()">Ver um exemplo pronto</button>' + botaoInstalar('btn sec') + '</div></div>' +
+         '<div class="stack" style="margin-top:12px"><button class="btn acc" onclick="novaDoPainel()">+ Nova avaliação</button><button class="btn sec" onclick="carregarDemo()">Ver um exemplo pronto</button>' + botaoInstalar('btn sec') + '</div></div>' + blocoTurmas() +
          '<p class="lbl" style="margin-top:6px;text-align:center;opacity:.7">Versão ' + VERSAO_APP + '</p>';
     $('#v-inicio').innerHTML = h; return;
   }
@@ -56,14 +57,15 @@ function renderInicio(){
        '<button class="btn" onclick="irCorrigir()">Corrigir provas</button></div>';
   if(sessao && sessao.usuario.papel === 'admin') h += '<div class="card avcard" onclick="adminLista=null;aba(\'admin\')"><div class="row" style="align-items:center"><div style="flex:1"><b>Administração</b><div class="lbl">Professores, liberação de acesso e uso do app</div></div><span class="lbl">›</span></div></div>';
   if(botaoInstalar()) h += '<div style="margin:-4px 0 14px">' + botaoInstalar('btn sec') + '</div>';
+  h += blocoTurmas();
   // próximas provas
   const prox = lista.filter(a => a.data && a.data >= hoje).sort((x, y) => x.data.localeCompare(y.data));
   if(prox.length){
     h += '<h3 class="sec">Próximas provas</h3>';
     prox.slice(0, 5).forEach(a => {
       const g = alunosGerados(a).length;
-      const st = !a.banco.length ? '<span class="pill">falta o banco</span>' : !a.alunos.length ? '<span class="pill">faltam alunos</span>' :
-                 !g ? '<span class="pill warn">gerar provas</span>' : Object.keys(a.resultados || {}).length ? '<span class="pill ok">' + Object.keys(a.resultados).length + '/' + g + ' corrigidas</span>' : '<span class="pill ok">' + g + ' provas prontas</span>';
+      const st = !a.banco.length ? '<span class="pill">falta o banco</span>' : !nProvas(a) ? '<span class="pill">faltam alunos</span>' :
+                 !totalProvas(a) ? '<span class="pill warn">gerar provas</span>' : Object.keys(a.resultados || {}).length ? '<span class="pill ok">' + Object.keys(a.resultados).length + '/' + (exameGerado(a) ? totalProvas(a) : g) + ' corrigidas</span>' : '<span class="pill ok">' + totalProvas(a) + ' provas prontas</span>';
       h += '<div class="card avcard" onclick="abrirAv(\'' + a.id + '\')"><div class="row" style="align-items:center"><div class="dia"><b>' + a.data.slice(8, 10) + '</b><span>' +
            ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'][+a.data.slice(5, 7) - 1] + '</span></div>' +
            '<div style="flex:1;min-width:0"><b>' + nomeAv(a) + '</b><div class="lbl">' + esc([a.curso, a.chamada].filter(Boolean).join(' · ')) + ' · ' + quando(a.data) + '</div></div>' +
@@ -71,18 +73,18 @@ function renderInicio(){
     });
   }
   // correção em andamento
-  const pend = lista.filter(a => { const g = alunosGerados(a).length; return g && Object.keys(a.resultados || {}).length < g && (!a.data || a.data <= hoje); })
+  const pend = lista.filter(a => { const g = alunosGerados(a).length, c = Object.keys(a.resultados || {}).length; return (!a.data || a.data <= hoje) && (exameGerado(a) ? !c : g && c < g); })
     .sort((x, y) => (y.data || '').localeCompare(x.data || ''));
   if(pend.length){
     h += '<h3 class="sec">Para corrigir</h3>';
     pend.forEach(a => {
-      const g = alunosGerados(a).length, c = Object.keys(a.resultados || {}).length;
+      const g = totalProvas(a), c = Object.keys(a.resultados || {}).length;
       h += '<div class="card avcard" onclick="corrigirAv(\'' + a.id + '\')"><div class="row" style="align-items:center"><div style="flex:1;min-width:0"><b>' + nomeAv(a) + '</b><div class="lbl">' + subAv(a) + '</div></div>' +
            '<div style="flex:none" class="lbl"><b style="color:var(--ink)">' + c + '</b> de ' + g + '</div></div>' + barra(c, g) + '</div>';
     });
   }
   // concluídas
-  const feitas = lista.filter(a => { const g = alunosGerados(a).length; return g && Object.keys(a.resultados || {}).length >= g; })
+  const feitas = lista.filter(a => { const g = alunosGerados(a).length, c = Object.keys(a.resultados || {}).length; return exameGerado(a) ? c > 0 : g && c >= g; })
     .sort((x, y) => (y.data || '').localeCompare(x.data || ''));
   if(feitas.length){
     h += '<h3 class="sec">Corrigidas</h3>';
@@ -93,7 +95,7 @@ function renderInicio(){
     });
   }
   // rascunhos sem data
-  const semData = lista.filter(a => !a.data && !alunosGerados(a).length);
+  const semData = lista.filter(a => !a.data && !totalProvas(a));
   if(semData.length){
     h += '<h3 class="sec">Rascunhos</h3>';
     semData.forEach(a => { h += '<div class="card avcard" onclick="abrirAv(\'' + a.id + '\')"><b>' + nomeAv(a) + '</b><div class="lbl">' + subAv(a) + ' · sem data</div></div>'; });
@@ -105,7 +107,7 @@ function renderInicio(){
 
 // =================== lista de avaliações ===================
 function statusAv(a){
-  const g = alunosGerados(a).length, c = Object.keys(a.resultados || {}).length;
+  const g = totalProvas(a), c = Object.keys(a.resultados || {}).length;
   if(!g) return '<span class="pill">rascunho</span>';
   if(c) return '<span class="pill ok">' + c + '/' + g + ' corrigidas</span>';
   return '<span class="pill warn">' + g + ' provas geradas</span>';
@@ -125,7 +127,7 @@ function renderLista(){
     grupos[k].sort((x, y) => (y.data || '').localeCompare(x.data || '')).forEach(a => {
       h += '<div class="card avcard' + (a.id === db.ativa ? ' ativa' : '') + '" onclick="abrir(\'' + a.id + '\')"><div class="row" style="align-items:center">' +
            '<div style="flex:1;min-width:0"><b>' + esc(a.titulo || 'Avaliação') + '</b><div class="lbl">' + (a.data ? fmtData(a.data) + ' · ' : '') +
-           a.banco.length + ' questões no banco · ' + (alunosGerados(a).length || a.alunos.length) + ' alunos</div></div><div style="flex:none">' + statusAv(a) + '</div></div></div>';
+           a.banco.length + ' questões no banco · ' + (semNome(a) ? qtdProvas(a) + ' provas sem nome' : (alunosGerados(a).length || a.alunos.length) + ' alunos') + '</div></div><div style="flex:none">' + statusAv(a) + '</div></div></div>';
     });
     h += '</div>';
   });
@@ -197,34 +199,28 @@ function renderEditor(){
     '<p class="lbl" style="margin-top:6px">Cole as questões da sua prova (de um Word, por exemplo), numeradas: "1.", "2)", "Questão 3"… O app formata cada uma no padrão, com linhas para resposta.</p>' +
     '<textarea id="txtQuestoes" rows="6" placeholder="1. Com base no caso, explique...&#10;&#10;2. Segundo Porter (1986), ..."></textarea>' +
     '<div class="row" style="margin-top:8px"><button class="btn sec" onclick="colarQuestoes()">Adicionar ao banco</button></div></details></div>';
-  // 4. alunos
-  h += '<div class="card"><div class="passo">4</div><h2>Alunos</h2>' +
-    (a.alunos.length ? '<p><b>' + a.alunos.length + ' alunos</b> na lista.</p><details><summary class="lbl">Ver lista</summary><ol class="alunos">' +
-       a.alunos.map(x => '<li>' + esc(x.nome) + (x.ra ? ' <span class="lbl">RA ' + esc(x.ra) + '</span>' : '') + (x.cpf ? ' <span class="lbl">CPF ' + esc(x.cpf) + '</span>' : '') + '</li>').join('') + '</ol></details>'
-     : '<p class="muted">Envie uma planilha com as colunas Nome, RA e CPF, ou cole a lista abaixo (uma linha por aluno: nome, RA e/ou CPF separados por tabulação ou ponto e vírgula). Do CPF, o app guarda e imprime só os 3 primeiros números e os 2 dígitos finais.</p>') +
-    '<textarea id="txtAlunos" rows="4" placeholder="Maria da Silva;12345;123.456.789-01&#10;João Souza;12346;987.654.321-00"></textarea>' +
-    '<div class="row" style="margin-top:8px"><button class="btn sec" onclick="usarListaColada()">Usar lista colada</button>' +
-    '<button class="btn sec" onclick="$(\'#arqAlunos\').click()">Enviar planilha</button></div></div>';
+  // 4. alunos (turma salva, lista avulsa ou exame sem nome)
+  h += cartaoAlunos(a);
   // 5. provas
-  const ndq2 = Math.min(+a.config.nd || 0, discursivas(a).length), pronto = a.alunos.length && ((n > 0 && objetivas(a).length) || ndq2 > 0);
+  const ndq2 = Math.min(+a.config.nd || 0, discursivas(a).length), NP = nProvas(a), maisExtra = semNome(a) ? ' sem nome' : ' (+ 1 extra em branco, para aluno fora da lista)', pronto = NP && ((n > 0 && objetivas(a).length) || ndq2 > 0);
   h += '<div class="card"><div class="passo">5</div><h2>Provas</h2>';
   if(imp) h += '<p class="muted">Avaliação importada de um arquivo de gabaritos: ' + g.length + ' provas prontas para correção.</p>';
-  else if(!pronto) h += '<p class="muted">Complete o banco de questões e a lista de alunos para gerar as provas.</p>';
+  else if(!pronto) h += '<p class="muted">Complete o banco de questões e ' + (semNome(a) ? 'a quantidade de provas' : 'a lista de alunos') + ' para gerar as provas.</p>';
   else {
-    if(!n) h += '<p>' + a.alunos.length + ' provas (+ 1 extra em branco) só com ' + ndq + ' questão(ões) dissertativa(s)' + (discursivas(a).length > ndq ? ', sorteadas de ' + discursivas(a).length : '') + '. No final de cada prova sai um quadro de correção com código: na hora de corrigir, fotografe o quadro e digite a nota de cada questão.</p>';
-    else h += '<p>' + a.alunos.length + ' provas (+ 1 extra em branco, para aluno fora da lista) com ' + Math.min(n, nObjB) + ' objetivas' + (ndq ? ' e ' + ndq + ' discursiva' + (ndq > 1 ? 's' : '') : '') + ' cada, sorteadas de ' + nObjB + ' objetivas' + (ndq ? ' e ' + discursivas(a).length + ' discursivas' : '') + ' (' +
-         (comb >= a.alunos.length ? 'todas as combinações diferentes' : 'só há ' + comb + ' combinações possíveis: algumas provas vão repetir questões, mas com alternativas embaralhadas') + ').</p>' +
+    if(!n) h += '<p>' + NP + ' provas' + maisExtra + ' só com ' + ndq + ' questão(ões) dissertativa(s)' + (discursivas(a).length > ndq ? ', sorteadas de ' + discursivas(a).length : '') + '. No final de cada prova sai um quadro de correção com código: na hora de corrigir, fotografe o quadro e digite a nota de cada questão.</p>';
+    else h += '<p>' + NP + ' provas' + maisExtra + ' com ' + Math.min(n, nObjB) + ' objetivas' + (ndq ? ' e ' + ndq + ' discursiva' + (ndq > 1 ? 's' : '') : '') + ' cada, sorteadas de ' + nObjB + ' objetivas' + (ndq ? ' e ' + discursivas(a).length + ' discursivas' : '') + ' (' +
+         (comb >= NP ? 'todas as combinações diferentes' : 'só há ' + comb + ' combinações possíveis: algumas provas vão repetir questões, mas com alternativas embaralhadas') + ').</p>' +
          (n > nObjB ? '<div class="alerta">O banco tem menos questões objetivas que o número por prova.</div>' : '') +
          ((+a.config.nd || 0) > discursivas(a).length ? '<div class="alerta">O banco tem ' + discursivas(a).length + ' discursiva(s); a prova vai usar só essas.</div>' : '');
-    h += '<div class="stack" style="margin-top:10px"><button class="btn acc" onclick="baixarProvas()">' + (g.length ? 'Baixar provas (PDF)' : 'Gerar provas (PDF)') + '</button>';
-    if(g.length) h += '<button class="btn sec" onclick="baixarGabarito()">Baixar gabarito do professor (PDF)</button>' +
+    h += '<div class="stack" style="margin-top:10px"><button class="btn acc" onclick="baixarProvas()">' + (totalProvas(a) ? 'Baixar provas (PDF)' : 'Gerar provas (PDF)') + '</button>';
+    if(totalProvas(a)) h += '<button class="btn sec" onclick="baixarGabarito()">Baixar gabarito do professor (PDF)</button>' +
                       '<button class="btn sec" onclick="sortearDeNovo()">Sortear as provas de novo</button>';
     h += '</div>';
-    if(g.length) h += '<p class="lbl" style="margin-top:8px">Provas geradas em ' + new Date(a.gerado.quando).toLocaleString('pt-BR') + '. Para alterar banco, alunos ou regras depois disso, sorteie de novo.</p>';
+    if(totalProvas(a)) h += '<p class="lbl" style="margin-top:8px">Provas geradas em ' + new Date(a.gerado.quando).toLocaleString('pt-BR') + '. Para alterar banco, alunos ou regras depois disso, sorteie de novo.</p>';
   }
   h += '</div>';
   // 6. correção e relatório
-  if(g.length) h += '<div class="card"><div class="passo">6</div><h2>Correção e relatório</h2><p>' + nRes + ' de ' + g.length + ' provas corrigidas.</p>' +
+  if(totalProvas(a)) h += '<div class="card"><div class="passo">6</div><h2>Correção e relatório</h2><p>' + nRes + ' de ' + totalProvas(a) + ' provas corrigidas.</p>' +
     '<div class="stack" style="margin-top:10px"><button class="btn" onclick="corrigirAv(\'' + a.id + '\')">Corrigir provas</button>' +
     '<button class="btn sec" onclick="baixarRelatorio()">Baixar relatório de notas (PDF)</button>' +
     '<button class="btn sec" onclick="exportarCSV()">Exportar notas (planilha)</button></div></div>';
@@ -244,6 +240,8 @@ function setAv(k, v){
   const a = av();
   if(k === 'valor_total' && a.resultados){ a.valor_total = v; Object.entries(a.resultados).forEach(([c, r]) => { const al = alunosGerados(a).find(x => x.codigo === c); if(al) Object.assign(r, calcular(a, al, r.marcadas, r.disc)); }); }
   else a[k] = v;
+  // virou exame depois de já ter lista ou provas: mantém a lista (o professor pode marcar "sem nome" no passo 4)
+  if(k === 'chamada' && ehExame(a) && a.semNome == null && (a.alunos.length || a.gerado)) a.semNome = false;
   if(k === 'professor' && v) db.professor = v;
   salvarDB(); render();
 }
@@ -313,7 +311,7 @@ function usarListaColada(){
 function definirAlunos(lista){
   if(!lista.length) return alert('Nenhum aluno encontrado. Confira se há uma coluna "Nome".');
   if(!alteraGerado()) return;
-  av().alunos = lista; salvarDB(); render(); toast(lista.length + ' alunos carregados');
+  av().alunos = lista; av().turmaId = null; salvarDB(); render(); toast(lista.length + ' alunos carregados');
 }
 function verBanco(){
   const a = av();
@@ -346,6 +344,7 @@ function baixarGabarito(){
   comProgresso('Gerando o gabarito…', async () => { await pdfLibs(); const a = av(); baixarBlob(PDFGEN.gerarGabarito(a).output('blob'), 'gabarito_' + nomeArq(a.disciplina + '_' + a.titulo) + '.pdf'); });
 }
 function baixarRelatorio(){
+  if(!alunosGerados(av()).length) return toast('Nenhuma prova corrigida ainda');
   comProgresso('Gerando o relatório…', async () => { await pdfLibs(); const a = av(); baixarBlob(PDFGEN.gerarRelatorio(a).output('blob'), 'relatorio_' + nomeArq(a.disciplina + '_' + a.titulo) + '.pdf'); });
 }
 function sortearDeNovo(){
@@ -385,7 +384,7 @@ function carregarDemo(){
 
 // =================== corrigir ===================
 function seletorAv(onde){
-  const lista = Object.values(db.avaliacoes).filter(a => alunosGerados(a).length);
+  const lista = Object.values(db.avaliacoes).filter(a => totalProvas(a));
   if(!lista.length) return '';
   return '<label class="campo"><span>Avaliação</span><select onchange="db.ativa=this.value;salvarDB();render()">' +
     lista.map(a => '<option value="' + a.id + '"' + (a.id === db.ativa ? ' selected' : '') + '>' + esc([a.curso, a.disciplina, a.titulo].filter(Boolean).join(' · ')) + '</option>').join('') + '</select></label>';
@@ -393,18 +392,18 @@ function seletorAv(onde){
 function irCorrigir(){ corrigindo = false; aba('corrigir'); }
 function corrigirAv(id){ db.ativa = id; salvarDB(); corrigindo = true; editando = false; aba('corrigir'); }
 function renderCorrigir(){
-  const lista = Object.values(db.avaliacoes).filter(x => alunosGerados(x).length);
+  const lista = Object.values(db.avaliacoes).filter(x => totalProvas(x));
   if(!lista.length){
     $('#v-corrigir').innerHTML = '<div class="card"><h2>Nada para corrigir ainda</h2><p class="muted">Gere as provas de uma avaliação (aba Avaliações) ou carregue o exemplo de demonstração.</p>' +
       '<div class="stack" style="margin-top:12px"><button class="btn sec" onclick="aba(\'aval\')">Ir para Avaliações</button><button class="btn sec" onclick="carregarDemo()">Carregar exemplo</button></div></div>';
     return;
   }
-  const a = av(), g = alunosGerados(a);
+  const a = av(), g = a ? Array(totalProvas(a)) : [];
   // lista das provas já geradas
   if(!corrigindo || !a || !g.length){
     let h = '<h2 style="margin:4px 2px 4px">Escolha a prova para corrigir</h2><p class="lbl" style="margin:0 2px 12px">' + lista.length + (lista.length > 1 ? ' provas geradas' : ' prova gerada') + ' neste aparelho</p>';
     lista.sort((x, y) => (y.data || '').localeCompare(x.data || '') || (y.criada || '').localeCompare(x.criada || '')).forEach(x => {
-      const nG = alunosGerados(x).length, nC = Object.keys(x.resultados || {}).length;
+      const nG = totalProvas(x), nC = Object.keys(x.resultados || {}).length;
       h += '<div class="card avcard' + (x.id === db.ativa ? ' ativa' : '') + '" onclick="corrigirAv(\'' + x.id + '\')"><div class="row" style="align-items:center">' +
         '<div style="flex:1;min-width:0"><div class="lbl" style="font-weight:700;text-transform:uppercase;letter-spacing:.04em">' + esc(x.curso || 'Sem curso') + '</div>' +
         '<b>' + esc(x.disciplina || 'Sem disciplina') + '</b><div class="lbl">' + esc([x.titulo, x.chamada].filter(Boolean).join(' · ')) + (x.data ? ' · ' + fmtData(x.data) : '') + '</div></div>' +
@@ -431,7 +430,7 @@ function renderCorrigir(){
 function renderTurma(){
   const a = av(), g = alunosGerados(a);
   let h = '<div class="card">' + seletorAv();
-  if(!a || !g.length){ $('#v-turma').innerHTML = h + '<div class="vazio">Nenhuma prova gerada nesta avaliação.</div></div>'; return; }
+  if(!a || !g.length){ $('#v-turma').innerHTML = h + '<div class="vazio">' + (exameGerado(a) ? 'Nenhuma prova corrigida ainda. No exame sem nome, cada aluno aparece aqui depois de corrigido.' : 'Nenhuma prova gerada nesta avaliação.') + '</div></div>'; return; }
   const res = a.resultados || {};
   h += '<div class="row" style="align-items:center;margin-top:6px"><h2 style="margin:0">Turma (' + Object.keys(res).length + '/' + g.length + ')</h2></div>' +
     '<div class="row" style="margin-top:10px"><button class="btn small sec" onclick="baixarRelatorio()">Relatório (PDF)</button><button class="btn small sec" onclick="exportarCSV()">Planilha (CSV)</button></div>' +
@@ -455,6 +454,7 @@ function filtrarTurma(){
 }
 function exportarCSV(){
   const a = av(); if(!a) return;
+  if(!alunosGerados(a).length) return toast('Nenhuma prova corrigida ainda');
   const g = alunosGerados(a), n = Math.max(...g.map(x => x.gabarito.length)), res = a.resultados || {};
   const cab = ['Código', 'Nome', 'RA', 'Situação', 'Acertos', 'Questões', 'Nota objetivas', 'Nota discursivas', 'Nota']; for(let i = 1; i <= n; i++) cab.push('Q' + i); cab.push('Gabarito', 'Conferir');
   const linhas = [cab];
@@ -493,7 +493,7 @@ function interpretar(r){
   }
   let a = av();
   if(!a || r.qr.prova !== a.id){
-    if(db.avaliacoes[r.qr.prova] && alunosGerados(db.avaliacoes[r.qr.prova]).length){ db.ativa = r.qr.prova; salvarDB(); a = av(); toast('Avaliação trocada: ' + (a.titulo || a.id)); }
+    if(db.avaliacoes[r.qr.prova] && totalProvas(db.avaliacoes[r.qr.prova])){ db.ativa = r.qr.prova; salvarDB(); a = av(); toast('Avaliação trocada: ' + (a.titulo || a.id)); }
     else return {erro: 'Esta folha é de uma avaliação que não está neste aparelho (' + r.qr.prova + ').'};
   }
   const aluno = todosGerados(a).find(x => x.codigo === r.qr.codigo);
@@ -505,7 +505,7 @@ function interpretar(r){
 // =================== câmera ===================
 let stream = null, rodando = false, ultimo = null, iguais = 0, luz = false;
 async function abrirCamera(){
-  if(!alunosGerados(av()).length) return toast('Gere as provas primeiro');
+  if(!totalProvas(av())) return toast('Gere as provas primeiro');
   $('#cam').classList.add('on'); $('#camStatus').textContent = 'Abrindo a câmera…';
   try { stream = await navigator.mediaDevices.getUserMedia({audio: false, video: {facingMode: {ideal: 'environment'}, width: {ideal: 1920}, height: {ideal: 1080}}}); }
   catch(e){ $('#camStatus').textContent = 'Sem acesso à câmera. Use "Corrigir a partir de uma foto".'; return; }
@@ -589,7 +589,7 @@ function mostrarResultado(it){
       (m === g ? '<span class="pill ok">certa</span>' : '<span class="pill bad">errada</span>') + '</td></tr>';
   }
   $('#resConteudo').innerHTML =
-    '<div class="card"><div class="lbl">' + esc(al.codigo) + ' · RA ' + esc(al.ra || '–') + ' · ' + esc([a.disciplina, a.titulo].filter(Boolean).join(' · ')) + '</div>' + (al.extra ? '<div class="alerta">Prova extra (aluno fora da lista). Digite o nome do aluno:</div><input type="text" style="margin-top:8px" value="' + (al.nome === 'ALUNO(A) NÃO LISTADO(A)' ? '' : esc(al.nome)) + '" placeholder="Nome do aluno" onchange="atual.aluno.nome = this.value.trim().toUpperCase() || \'ALUNO(A) NÃO LISTADO(A)\'; salvarDB()">' : '<h2 style="font-size:20px">' + esc(al.nome) + '</h2>') +
+    '<div class="card"><div class="lbl">' + esc(al.codigo) + ' · RA ' + esc(al.ra || '–') + ' · ' + esc([a.disciplina, a.titulo].filter(Boolean).join(' · ')) + '</div>' + (al.extra ? '<div class="alerta">' + (al.semNome ? 'Prova sem nome' : 'Prova extra (aluno fora da lista)') + '. Digite o nome do aluno:</div><input type="text" style="margin-top:8px" value="' + (al.nome === 'ALUNO(A) NÃO LISTADO(A)' ? '' : esc(al.nome)) + '" placeholder="Nome do aluno" onchange="atual.aluno.nome = this.value.trim().toUpperCase() || \'ALUNO(A) NÃO LISTADO(A)\'; salvarDB()">' : '<h2 style="font-size:20px">' + esc(al.nome) + '</h2>') +
     '<div class="row" style="margin-top:8px;align-items:flex-end"><div><div class="lbl">Nota</div><div class="big">' + fmt(calc.nota) + '</div></div>' +
     (n ? '<div><div class="lbl">Acertos' + (V.nd ? ' (objetivas)' : '') + '</div><div class="big" style="font-size:28px">' + calc.acertos + '/' + n + '</div></div>' : '') + '</div>' +
     (V.nd && !n && calc.faltaDisc ? '<div class="alerta">Falta lançar a nota de ' + calc.faltaDisc + ' questão(ões) (mais abaixo).</div>' : '') +

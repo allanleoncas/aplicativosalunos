@@ -368,7 +368,7 @@
       } else quadroCorrecao(doc, al, av, discs.length);
       if (av.config.frenteVerso && (doc.getNumberOfPages() - pIni + 1) % 2 === 1) doc.addPage();
       var pFim = doc.getNumberOfPages(), tot = pFim - pIni + 1;
-      for (var p = pIni; p <= pFim; p++) { doc.setPage(p); rodape(doc, ((al.extra ? 'Prova extra (aluno fora da lista)' : al.nome) + ' · ' + al.codigo), p - pIni + 1, tot); }
+      for (var p = pIni; p <= pFim; p++) { doc.setPage(p); rodape(doc, ((al.extra ? (al.semNome ? 'Prova sem nome' : 'Prova extra (aluno fora da lista)') : al.nome) + ' · ' + al.codigo), p - pIni + 1, tot); }
       doc.setPage(pFim);
     });
     return doc;
@@ -425,7 +425,7 @@
       [av.curso, av.chamada, av.data ? fmtData(av.data) : '', av.gerado.alunos.length + ' provas'].filter(Boolean).join('  ·  '));
     var wq = Math.min(9.5, (CW - 12 - 64 - 14) / nmax), cols = [{ t: 'Nº', w: 12, al: 'c' }, { t: 'Aluno(a)', w: CW - 12 - 14 - wq * nmax }, { t: 'Prova', w: 14, al: 'c' }];
     for (var i = 0; i < nmax; i++) cols.push({ t: String(i + 1), w: wq, al: 'c' });
-    var linhas = av.gerado.alunos.map(function (a, k) { return [String(k + 1), a.nome, a.codigo].concat(a.gabarito.split('')); });
+    var linhas = av.gerado.alunos.map(function (a, k) { return [String(k + 1), (a.semNome && a.nome === 'ALUNO(A) NÃO LISTADO(A)') ? '(sem nome)' : a.nome, a.codigo].concat(a.gabarito.split('')); });
     y = tabela(doc, y, cols, linhas, { estilo: function (i, k) { return k >= 3 ? { b: true, cor: NAVY } : null; } });
     fonte(doc, 'normal', 8.5, CINZA);
     doc.text(san('As alternativas foram embaralhadas em cada prova: use sempre a linha do aluno. Documento de uso exclusivo do professor.'), M, y + 6);

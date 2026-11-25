@@ -7,7 +7,7 @@ const LAYOUTS = {
     "bolhas":{"blocos":[{"x0":22,"y0":33},{"x0":84,"y0":33}],"porBloco":5,"dx":9,"dy":6.5,"raio":2.5,"letras":"ABCDE","max_questoes":10}}
 };
 const MAXQ = 10;
-const VERSAO_APP = '20261124a'; // mude a cada publicação para o navegador não usar arquivos antigos
+const VERSAO_APP = '20261125a'; // mude a cada publicação para o navegador não usar arquivos antigos
 const LETRAS = 'ABCDE';
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -44,6 +44,9 @@ const av = () => db.ativa ? db.avaliacoes[db.ativa] : null;
 // provas geradas; a prova extra em branco só entra nas contas depois de corrigida
 const alunosGerados = a => (a && a.gerado) ? a.gerado.alunos.filter(x => !x.extra || (a.resultados || {})[x.codigo]) : [];
 const todosGerados = a => (a && a.gerado) ? a.gerado.alunos : [];
+// provas impressas (inclui as sem nome do exame, mesmo antes de corrigidas)
+const exameGerado = a => !!(a && a.gerado && a.gerado.semNome);
+const totalProvas = a => exameGerado(a) ? a.gerado.alunos.length : alunosGerados(a).length;
 
 function novoId(){
   const s = Date.now().toString(36).slice(-5).toUpperCase() + Math.random().toString(36).slice(2, 4).toUpperCase();
@@ -114,7 +117,10 @@ function sortear(a){
   const assin = new Set(); let anterior = new Set();
   const T = temas.length, saida = [];
   // sempre uma prova extra em branco no final, para aluno que não está na lista
-  const lista = a.alunos.concat([{nome: 'ALUNO(A) NÃO LISTADO(A)', ra: '', cpf: '', extra: true}]);
+  // exame sem nome: só a quantidade de provas, todas em branco (o nome é digitado na correção)
+  const sn = semNome(a);
+  const lista = sn ? Array.from({length: qtdProvas(a)}, () => ({nome: 'ALUNO(A) NÃO LISTADO(A)', ra: '', cpf: '', extra: true, semNome: true}))
+                   : a.alunos.concat([{nome: 'ALUNO(A) NÃO LISTADO(A)', ra: '', cpf: '', extra: true}]);
   lista.forEach((al, idx) => {
     // cotas por tema: todos os temas aparecem quando n >= nº de temas; o que sobra gira entre os alunos
     const cota = {}; temas.forEach(t => cota[t] = 0);
@@ -148,9 +154,10 @@ function sortear(a){
       p.disc = bancoD.filter(q => ds.includes(q)).map(q => q.id);
     }
     if(al.extra) p.extra = true;
+    if(al.semNome) p.semNome = true;
     saida.push(p);
   });
-  return {quando: new Date().toISOString(), layout: 'OMR2', alunos: saida, unicas: assin.size};
+  return {quando: new Date().toISOString(), layout: 'OMR2', alunos: saida, unicas: assin.size, ...(sn ? {semNome: true} : {})};
 }
 
 // =================== importações ===================

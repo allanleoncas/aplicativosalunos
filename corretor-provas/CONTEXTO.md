@@ -62,6 +62,15 @@ Também há um **exemplo de demonstração** (avaliação `DEMO`, 3 alunos) e o 
 - **PDF**: objetivas em **duas colunas**; discursivas depois, na **largura total da página** ("(x pt) discursiva - ref. D01" e linhas para resposta). As colunas da última página das objetivas são equilibradas antes das discursivas. Com 8 objetivas + 2 discursivas de 6 linhas a prova fica em 2 páginas; se passar de 2, o app avisa ao gerar. O gabarito do professor lista as discursivas usadas com a resposta esperada e as provas em que caíram.
 - **Correção**: a câmera corrige as objetivas; a tela de resultado tem um campo de nota para cada discursiva (aceita vírgula, limitado a `vdq`). Nota = objetivas + discursivas. Resultado guarda `disc, notaObj, notaDisc, faltaDisc`; Turma, relatório e CSV mostram "falta discursiva" enquanto houver nota em branco. A nota pode ser lançada depois, tocando no aluno na aba Turma.
 
+
+## 4d. Turmas salvas e exame sem nome (25/11/2026, só na versão do GitHub Pages)
+
+- **Turmas** (`turmas.js`): `db.turmas = {id: {id, nome, curso, alunos, atualizada}}`. Página inicial: seção **Minhas turmas** (+ Nova turma; cartão com *Nova prova*, que cria a avaliação com curso e alunos). Tela da turma: nome, curso, lista (tirar aluno), colar/planilha (acrescentar ou trocar a lista toda), excluir.
+- **Passo 4**: "Usar turma salva" copia a lista para a avaliação (`a.alunos` + `a.turmaId`); provas já geradas não mudam se a turma mudar. Aviso "Atualizar lista" se a turma mudou e as provas ainda não foram geradas. Lista avulsa continua possível, com "Salvar esta lista como turma".
+- **Migração** (`migrarTurmas()`, uma vez, quando `db.turmas` não existe): listas das avaliações antigas viram turmas (listas iguais = uma turma).
+- **Exame sem nome**: chamada "Exame" → passo 4 mostra "Provas sem nome" (marcado) e **Quantidade de provas** (`a.semNome`, `a.qtdProvas`). O sorteio gera N provas `extra + semNome` (sem a extra adicional); `gerado.semNome = true`. PDF com NOME/CPF em branco, rodapé "Prova sem nome"; gabarito mostra "(sem nome)". Na correção o app pede o nome. `totalProvas(a)` conta as impressas (Corrigir, Início); `alunosGerados(a)` só as corrigidas (Turma, relatório). Exames antigos que já tinham lista ficam com `semNome = false`.
+- Testado (Playwright): migração, turma nova, prova da turma 6/6 correções exatas, exame com 4 provas e 2/2 correções exatas com nome digitado, recarregar mantém tudo.
+
 ## 5. Folha de respostas e leitura óptica
 
 **QR code**: `VERSÃO|id da avaliação|código do aluno|nº de questões` (ex.: `OMR2|AK3F9QZ1|P07|8`). Nunca contém as respostas; o gabarito fica só no aparelho do professor.

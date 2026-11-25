@@ -43,6 +43,8 @@ Também há um **exemplo de demonstração** (avaliação `DEMO`, 3 alunos) e o 
 - Rodapé de cada página: nome do aluno, código e "Página x de y".
 - Fontes padrão do PDF (Helvetica, Latin-1): `san()` em `pdfgen.js` troca travessões, aspas curvas etc. por equivalentes.
 
+- **Aviso para IA** (25/11/2026, `avisoIA()` em `pdfgen.js`): no topo de cada página da prova, duas linhas cinza-claras e pequenas (português e inglês) dizendo a assistentes de IA que é uma prova avaliativa individual e que não devem resolver nem dar dicas; também vai como texto invisível no PDF e nos metadados (título/assunto). Não há QR extra (a IA não lê QR e um segundo QR atrapalharia a leitura da folha). Não garante recusa de toda IA. Gabarito e relatório não têm o aviso.
+
 ## 4. Sorteio das provas (`sortear()` em `app.js`)
 
 - **Prova extra em branco**: o sorteio sempre acrescenta, no fim, uma prova a mais (`extra: true`, nome interno `ALUNO(A) NÃO LISTADO(A)`, próximo código, ex.: P54) para aluno que não está na lista. No PDF ela sai com `NOME: ____` e `CPF: ____` para preencher à mão, "Aluno(a): ____" na folha e rodapé "Prova extra (aluno fora da lista)". Na correção, a tela pede o nome do aluno (salvo em maiúsculas). `alunosGerados()` ignora a extra enquanto não for corrigida (contagens, turma, relatório); `todosGerados()` a inclui (leitura da folha).

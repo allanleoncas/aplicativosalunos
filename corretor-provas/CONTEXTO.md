@@ -24,7 +24,7 @@ Abas: **Início**, **Avaliações**, **Corrigir**, **Turma**.
 2. Na avaliação, cinco passos:
    1. **Dados**: curso, disciplina, nome do(a) professor(a) (lembrado nas próximas avaliações em `db.professor`), título, chamada (Primeira chamada, Segunda chamada, Exame, Recuperação), data, valor de cada objetiva (e de cada discursiva; o total é calculado), questões objetivas por prova (1 a 10), discursivas por prova, embaralhar questões, frente e verso, mostrar tema.
    2. **Cabeçalho**: por padrão, o **cabeçalho UNIFADAP** do modelo do professor (logo à esquerda; à direita, tudo em maiúsculas, `CURSO - ANO` (ano = ano da data da prova, ex.: 2026), `TÍTULO - CHAMADA` e `DISCIPLINA` em itálico; linha azul abaixo), desenhado pelo app com os dados do passo 1 (`cabecalhoPadrao()` em `pdfgen.js`; logo em `img/logo_unifadap.png` e `logo.js`). Não é preciso enviar nada. Opcional: enviar outra imagem ou PDF (recorta as margens brancas) e depois *Voltar ao padrão UNIFADAP*.
-   3. **Banco de questões**: planilha modelo (o app oferece para baixar) com colunas `Tema | Nível | Enunciado | A | B | C | D | E | Correta | Comentário`. Aceita .xlsx, .xls, .csv (UTF-8 ou Windows-1252), .ods. Questões com 4 alternativas: coluna E vazia.
+   3. **Banco de questões**: planilha modelo (o app oferece para baixar) com colunas `Tema | Nível | Enunciado | A | B | C | D | E | Correta | Comentário` (+ `Tipo` e `Imagem`, opcionais). Aceita .xlsx, .xls, .csv (UTF-8 ou Windows-1252), .ods. Questões com 4 alternativas: coluna E vazia.
    4. **Alunos**: planilha (Nome, RA, CPF) ou lista colada (nome, RA e/ou CPF separados por tabulação ou ponto e vírgula; CPF reconhecido por ter 11 dígitos). O CPF é mascarado na importação (`mascararCPF()`: `123.***.***-45`) e o número completo nunca é guardado.
    5. **Provas**: *Gerar provas (PDF)*, *Gabarito do professor (PDF)*, *Sortear de novo*.
    6. **Correção e relatório** (depois de gerar): corrigir, *Relatório de notas (PDF)*, *Exportar notas (CSV)*.
@@ -86,6 +86,14 @@ Também há um **exemplo de demonstração** (avaliação `DEMO`, 3 alunos) e o 
 - O PDF usa `cabecalhoDe(a)` (`app.js`): o cabeçalho próprio da avaliação (`a.cabecalho`, só avaliações antigas) ou, se não houver, o da instituição. O passo 2 da avaliação só mostra o cabeçalho que será usado; avaliações antigas com cabeçalho próprio ganham o botão *Usar o cabeçalho da instituição*. Não há mais envio de cabeçalho dentro da avaliação.
 - O backup (.json) de uma avaliação não leva o cabeçalho da instituição: em outro aparelho, enviar de novo na página inicial.
 - Testado (Playwright): envio na página inicial, prova gerada com o cabeçalho enviado (PDF conferido), 5/5 correções exatas, recarregar mantém o cabeçalho, avaliação antiga com cabeçalho próprio continua com o dela.
+
+## 4g. Imagens nas questões (25/11/2026, versão 20261125e, só na versão do GitHub Pages)
+
+- Pedido do professor: questões com gráfico ou figura. A imagem fica em `q.img` ({dataUrl, tipo, w, h, nome}) dentro do banco, só no aparelho (IndexedDB) e no backup .json. Reduzida ao enviar (até 1400 px, margens brancas recortadas; PNG ou JPEG se passar de ~350 KB) por `lerImagemQuestao()` em `app.js`, que reaproveita `lerCabecalho()`. Aceita imagem ou PDF (1ª página).
+- **Pela tela**: *Ver questões do banco* → *Anexar imagem* / *Trocar imagem* / *Remover imagem* em cada questão (objetiva ou discursiva). Não exige novo sorteio; basta gerar o PDF de novo.
+- **Pela planilha**: coluna opcional `Imagem` (também `Figura`) com o nome do arquivo (`q.imgNome`). No passo 3 aparece o aviso das imagens que faltam e o botão *Enviar imagens do banco* (vários arquivos); `ligarImagens()` liga pelo nome, sem diferenciar maiúsculas, acentos ou extensão. Ao substituir o banco, `manterImagens()` conserva as imagens das questões com o mesmo enunciado. A planilha modelo traz a coluna e a instrução 9.
+- **PDF** (`figura()` em `pdfgen.js`): abaixo do enunciado, centralizada, na largura da coluna e até 50 mm de altura nas objetivas (60 mm nas discursivas, na largura da página); imagens pequenas não são ampliadas demais. Cada imagem entra uma vez no arquivo (apelido), então o PDF da turma não cresce por aluno. O gabarito do professor mostra a imagem das discursivas. Se passar de 2 páginas, o aviso de sempre aparece.
+- Testado (Playwright): banco com 5 objetivas e 1 discursiva com imagem (PNG sem extensão no nome, foto JPEG 3000×4000), envio em lote, anexar/remover pela tela, substituir banco mantendo imagens; 13 provas com 8 objetivas e até 4 imagens = 2 páginas cada (PDF de 690 KB); com 1 discursiva a mais e 3 imagens a prova passa para 4 páginas e o app avisa; 6/6 correções pela foto exatas. `omr.js` e layouts não mudaram.
 
 ## 5. Folha de respostas e leitura óptica
 

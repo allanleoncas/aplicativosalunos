@@ -195,6 +195,7 @@ function renderEditor(){
      : '<p class="muted">Preencha a planilha modelo (uma questão por linha) e envie aqui. Aceita Excel (.xlsx) ou CSV.</p>') +
     '<div class="row" style="margin-top:10px"><button class="btn sec" onclick="baixarModeloBanco()">Baixar planilha modelo</button>' +
     '<button class="btn sec" onclick="$(\'#arqBanco\').click()">' + (a.banco.length ? 'Substituir banco' : 'Enviar planilha') + '</button></div>' +
+    blocoImagensBanco(a) +
     (a.banco.length ? '<button class="link" style="margin-top:8px" onclick="verBanco()">Ver questões do banco</button>' : '') +
     '<details style="margin-top:12px"' + (a.banco.length ? '' : ' open') + '><summary><b>Colar questões dissertativas prontas</b></summary>' +
     '<p class="lbl" style="margin-top:6px">Cole as questões da sua prova (de um Word, por exemplo), numeradas: "1.", "2)", "Questão 3"… O app formata cada uma no padrão, com linhas para resposta.</p>' +
@@ -318,7 +319,10 @@ async function onBanco(inp){
     if(!banco.length) throw new Error(erros.slice(0, 5).join('\n') || 'Nenhuma questão encontrada.');
     if(erros.length && !confirm(banco.length + ' questões lidas. ' + erros.length + ' linha(s) com problema serão ignoradas:\n\n' + erros.slice(0, 8).join('\n') + (erros.length > 8 ? '\n…' : '') + '\n\nContinuar?')) return;
     if(!alteraGerado()) return;
-    av().banco = banco; salvarDB(); render(); toast(banco.length + ' questões carregadas');
+    const mantidas = manterImagens(av().banco, banco);
+    av().banco = banco; salvarDB(); render();
+    const falta = faltaImagem(av()).length;
+    toast(banco.length + ' questões carregadas' + (mantidas ? ' · ' + mantidas + ' imagem(ns) mantida(s)' : '') + (falta ? ' · envie as ' + falta + ' imagem(ns)' : ''));
   } catch(e){ alert('Não consegui ler o banco de questões.\n' + e.message); }
 }
 async function onAlunosArq(inp){
@@ -334,13 +338,54 @@ function definirAlunos(lista){
   if(!alteraGerado()) return;
   av().alunos = lista; av().turmaId = null; salvarDB(); render(); toast(lista.length + ' alunos carregados');
 }
-function verBanco(){
+// passo 3: imagens indicadas na coluna "Imagem" da planilha e envio em lote
+function blocoImagensBanco(a){
+  const comNome = a.banco.filter(q => q.imgNome), comImg = a.banco.filter(q => q.img), falta = faltaImagem(a);
+  if(!comNome.length && !comImg.length) return '';
+  return (falta.length ? '<div class="alerta" style="margin-top:10px">' + falta.length + ' questão(ões) indicam uma imagem que ainda não foi enviada: ' +
+      esc(falta.slice(0, 6).map(q => q.imgNome).join(', ')) + (falta.length > 6 ? '…' : '') + '. Sem ela, a questão sai só com o texto.</div>'
+    : '<p class="lbl" style="margin-top:10px">' + comImg.length + ' questão(ões) com imagem.</p>') +
+    (comNome.length ? '<div class="row" style="margin-top:8px"><button class="btn sec" onclick="$(\'#arqImgsBanco\').click()">Enviar imagens do banco</button></div>' : '');
+}
+async function onImagensBanco(inp){
+  const fs = [...inp.files]; inp.value = ''; if(!fs.length) return;
+  comProgresso('Lendo as imagens…', async () => {
+    const a = av(), {ok, semUso} = await ligarImagens(a, fs);
+    salvarDB(); render();
+    const falta = faltaImagem(a);
+    alert(ok.length + ' questão(ões) receberam imagem.' +
+      (semUso.length ? '\n\nArquivos sem questão com esse nome na coluna "Imagem": ' + semUso.join(', ') : '') +
+      (falta.length ? '\n\nAinda faltam: ' + falta.map(q => q.imgNome).join(', ') : ''));
+  });
+}
+let imgQuestaoAlvo = null;
+function anexarImagem(i){ imgQuestaoAlvo = i; $('#arqImgQ').click(); }
+async function onImagemQuestao(inp){
+  const f = inp.files[0]; inp.value = ''; if(!f || imgQuestaoAlvo == null) return;
+  const q = av().banco[imgQuestaoAlvo];
+  comProgresso('Lendo a imagem…', async () => {
+    q.img = await lerImagemQuestao(f); salvarDB(); verBanco(imgQuestaoAlvo); render();
+    toast('Imagem anexada' + (av().gerado ? '. Gere as provas de novo para incluí-la no PDF.' : ''));
+  });
+}
+function removerImagem(i){
+  const q = av().banco[i]; if(!q || !confirm('Tirar a imagem da questão ' + q.id + '?')) return;
+  delete q.img; salvarDB(); verBanco(i); render(); toast('Imagem removida');
+}
+function verBanco(foco){
   const a = av();
-  $('#resConteudo').innerHTML = '<button class="link" onclick="fecharRes()">‹ Voltar</button><h2 style="margin:8px 0 12px">Banco de questões (' + a.banco.length + ')</h2>' +
-    a.banco.map((q, i) => '<div class="card"><div class="lbl">' + esc(q.id) + ' · ' + (q.tipo === 'D' ? '<span class="pill warn">discursiva</span> · ' : '') + esc(q.tema) + (q.nivel ? ' · ' + esc(q.nivel) : '') + '</div><p style="margin:4px 0 8px">' + esc(q.enunciado) + '</p>' +
+  $('#resConteudo').innerHTML = '<button class="link" onclick="fecharRes()">‹ Voltar</button><h2 style="margin:8px 0 4px">Banco de questões (' + a.banco.length + ')</h2>' +
+    '<p class="lbl" style="margin:0 0 12px">Para pôr um gráfico ou figura numa questão, toque em <b>Anexar imagem</b>. Ela sai na prova logo abaixo do enunciado.</p>' +
+    a.banco.map((q, i) => '<div class="card" id="bq' + i + '"><div class="lbl">' + esc(q.id) + ' · ' + (q.tipo === 'D' ? '<span class="pill warn">discursiva</span> · ' : '') + esc(q.tema) + (q.nivel ? ' · ' + esc(q.nivel) : '') + '</div><p style="margin:4px 0 8px">' + esc(q.enunciado) + '</p>' +
+      (q.img ? '<img class="qimg" src="' + q.img.dataUrl + '" alt="Imagem da questão ' + esc(q.id) + '">' :
+       q.imgNome ? '<div class="alerta" style="margin:0 0 8px">Falta a imagem "' + esc(q.imgNome) + '".</div>' : '') +
       (q.tipo === 'D' ? '<div class="certa">' + esc(q.comentario || 'Sem resposta esperada.') + '</div>' :
-      q.alts.map((x, k) => '<div class="' + (k === q.correta ? 'certa' : '') + '"><b>' + LETRAS[k] + ')</b> ' + esc(x) + '</div>').join('')) + '</div>').join('');
-  $('#res').classList.add('on'); $('#res').scrollTop = 0;
+      q.alts.map((x, k) => '<div class="' + (k === q.correta ? 'certa' : '') + '"><b>' + LETRAS[k] + ')</b> ' + esc(x) + '</div>').join('')) +
+      '<div class="row" style="margin-top:8px"><button class="btn sec" onclick="anexarImagem(' + i + ')">' + (q.img ? 'Trocar imagem' : 'Anexar imagem') + '</button>' +
+      (q.img ? '<button class="btn sec" onclick="removerImagem(' + i + ')">Remover imagem</button>' : '') + '</div></div>').join('');
+  $('#res').classList.add('on');
+  const el = foco != null && $('#bq' + foco);
+  if(el) el.scrollIntoView({block: 'center'}); else $('#res').scrollTop = 0;
 }
 function garantirGerado(){
   const a = av();

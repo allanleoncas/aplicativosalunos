@@ -7,7 +7,7 @@ const LAYOUTS = {
     "bolhas":{"blocos":[{"x0":22,"y0":33},{"x0":84,"y0":33}],"porBloco":5,"dx":9,"dy":6.5,"raio":2.5,"letras":"ABCDE","max_questoes":10}}
 };
 const MAXQ = 10;
-const VERSAO_APP = '20261125d'; // mude a cada publicação para o navegador não usar arquivos antigos
+const VERSAO_APP = '20261125e'; // mude a cada publicação para o navegador não usar arquivos antigos
 const LETRAS = 'ABCDE';
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -189,6 +189,7 @@ function interpretarBanco(linhas){
   const cTema = col(['tema', 'aula', 'assunto', 'unidade', 'conteudo']), cNivel = col(['nivel', 'dificuldade']), cEnun = col(['enunciado']);
   const cAlt = ['a', 'b', 'c', 'd', 'e'].map(l => col([l, 'alternativa ' + l, 'alt ' + l, '(' + l + ')']));
   const cCor = col(['correta', 'resposta', 'gabarito', 'resposta correta']), cCom = col(['comentario', 'justificativa', 'explicacao']);
+  const cImg = col(['imagem', 'figura', 'arquivo da imagem', 'imagem (arquivo)', 'grafico']);
   const banco = [], erros = []; let nO = 0, nD = 0;
   for(let i = iCab + 1; i < linhas.length; i++){
     const l = linhas[i], v = c => c < 0 ? '' : String(l[c] == null ? '' : l[c]).trim();
@@ -196,29 +197,56 @@ function interpretarBanco(linhas){
     const alts = cAlt.map(c => v(c)).filter((x, k, arr) => x || arr.slice(k).some(Boolean));
     while(alts.length && !alts[alts.length - 1]) alts.pop();
     const correta = LETRAS.indexOf(v(cCor).toUpperCase().replace(/[^A-E]/g, '').slice(0, 1));
-    const linha = i + 1;
+    const linha = i + 1, imgNome = v(cImg);
     if(!v(cEnun)){ erros.push('Linha ' + linha + ': enunciado vazio.'); continue; }
     // discursiva: tipo "Discursiva" ou sem nenhuma alternativa
     if(/^disc|^dissert|^aberta/.test(norm(v(cTipo))) || !alts.length){
-      banco.push({id: 'D' + String(++nD).padStart(2, '0'), tipo: 'D', tema: v(cTema) || 'Geral', nivel: v(cNivel), enunciado: v(cEnun), alts: [], correta: -1, comentario: v(cCom)});
+      banco.push(comImagem({id: 'D' + String(++nD).padStart(2, '0'), tipo: 'D', tema: v(cTema) || 'Geral', nivel: v(cNivel), enunciado: v(cEnun), alts: [], correta: -1, comentario: v(cCom)}, imgNome));
       continue;
     }
     if(alts.length < 2 || alts.some(x => !x)){ erros.push('Linha ' + linha + ': alternativas incompletas.'); continue; }
     if(correta < 0 || correta >= alts.length){ erros.push('Linha ' + linha + ': a coluna "Correta" deve ter uma letra entre A e ' + LETRAS[alts.length - 1] + '.'); continue; }
-    banco.push({id: 'Q' + String(++nO).padStart(3, '0'), tema: v(cTema) || 'Geral', nivel: v(cNivel), enunciado: v(cEnun), alts, correta, comentario: v(cCom)});
+    banco.push(comImagem({id: 'Q' + String(++nO).padStart(3, '0'), tema: v(cTema) || 'Geral', nivel: v(cNivel), enunciado: v(cEnun), alts, correta, comentario: v(cCom)}, imgNome));
   }
   return {banco, erros};
+}
+// =================== imagens das questões ===================
+// q.imgNome: nome do arquivo indicado na coluna "Imagem" da planilha; q.img: {dataUrl, tipo, w, h, nome} (fica no aparelho)
+function comImagem(q, nome){ if(nome) q.imgNome = nome; return q; }
+const nomeImg = s => norm(String(s || '').split(/[\\/]/).pop()).replace(/\.(png|jpe?g|gif|webp|bmp|svg|pdf|heic)$/i, '').replace(/\s+/g, ' ').trim();
+const faltaImagem = a => (a.banco || []).filter(q => q.imgNome && !q.img);
+// ao substituir o banco, mantém as imagens já enviadas das questões com o mesmo enunciado (e mesmo arquivo, se houver)
+function manterImagens(antigo, novo){
+  const porEnun = {}; (antigo || []).forEach(q => { if(q.img) porEnun[norm(q.enunciado)] = q.img; });
+  let n = 0;
+  novo.forEach(q => { const im = porEnun[norm(q.enunciado)]; if(im && (!q.imgNome || nomeImg(q.imgNome) === nomeImg(im.nome))){ q.img = im; n++; } });
+  return n;
+}
+// liga cada arquivo à questão cuja coluna "Imagem" tem o mesmo nome (com ou sem extensão)
+async function ligarImagens(a, arquivos){
+  const ok = [], semUso = [];
+  for(const f of arquivos){
+    const alvo = a.banco.filter(q => q.imgNome && nomeImg(q.imgNome) === nomeImg(f.name));
+    if(!alvo.length){ semUso.push(f.name); continue; }
+    const im = await lerImagemQuestao(f);
+    alvo.forEach(q => { q.img = im; ok.push(q.id); });
+  }
+  return {ok, semUso};
+}
+async function lerImagemQuestao(arquivo){
+  const im = await lerCabecalho(arquivo, 1400, 350000, 1400);
+  im.nome = arquivo.name; return im;
 }
 async function baixarModeloBanco(){
   await carregarScript('lib/xlsx.full.min.js');
   const wb = XLSX.utils.book_new();
-  const q = [['Tipo', 'Tema', 'Nível', 'Enunciado', 'A', 'B', 'C', 'D', 'E', 'Correta', 'Comentário'],
+  const q = [['Tipo', 'Tema', 'Nível', 'Enunciado', 'A', 'B', 'C', 'D', 'E', 'Correta', 'Comentário', 'Imagem'],
     ['Objetiva', 'Aula 1 – Conceitos básicos', 'Lembrar', 'Segundo Mankiw (2013), a economia estuda:', 'Como a sociedade administra seus recursos escassos.', 'Apenas o mercado financeiro.', 'Somente as decisões do governo.', 'A contabilidade das empresas.', 'A história do dinheiro.', 'A', 'Escassez é o problema central da economia.'],
     ['Objetiva', 'Aula 2 – Oferta e demanda', 'Compreender', 'Se o preço de um bem sobe, o que acontece com a quantidade demandada (lei da demanda)?', 'Aumenta.', 'Diminui.', 'Não se altera.', 'Fica igual à oferta.', '', 'B', 'Questões com 4 alternativas: deixe a coluna E vazia.'],
     ['Discursiva', 'Aula 1 – Conceitos básicos', 'Analisar', 'Mankiw (2013) afirma que "as pessoas enfrentam tradeoffs". Explique o conceito de custo de oportunidade e dê um exemplo da vida de um estudante universitário.', '', '', '', '', '', '', 'Resposta esperada: custo de oportunidade é aquilo de que se abre mão para obter algo; ex.: horas de estudo no lugar de trabalho remunerado.'],
     ['Discursiva', 'Aula 2 – Oferta e demanda', 'Aplicar', 'Com base na lei da oferta e da demanda (Mankiw, 2013), explique o que acontece com o preço e a quantidade de equilíbrio do café quando uma geada destrói parte da safra.', '', '', '', '', '', '', 'Resposta esperada: a oferta diminui (curva desloca para a esquerda), o preço de equilíbrio sobe e a quantidade cai.']];
   const ws = XLSX.utils.aoa_to_sheet(q);
-  ws['!cols'] = [{wch: 11}, {wch: 26}, {wch: 12}, {wch: 60}, {wch: 34}, {wch: 34}, {wch: 34}, {wch: 34}, {wch: 34}, {wch: 9}, {wch: 40}];
+  ws['!cols'] = [{wch: 11}, {wch: 26}, {wch: 12}, {wch: 60}, {wch: 34}, {wch: 34}, {wch: 34}, {wch: 34}, {wch: 34}, {wch: 9}, {wch: 40}, {wch: 22}];
   XLSX.utils.book_append_sheet(wb, ws, 'Questões');
   const instr = [['Como preencher o banco de questões'], [''],
     ['1. Uma questão por linha, a partir da linha 2. Não mude os nomes das colunas.'],
@@ -228,7 +256,8 @@ async function baixarModeloBanco(){
     ['5. Correta: a letra da alternativa certa (A, B, C, D ou E), como está na planilha. O app embaralha as alternativas em cada prova.'],
     ['6. Comentário (opcional): explicação da resposta, para uso do professor.'],
     ['7. Tipo: Objetiva ou Discursiva. Questão discursiva: deixe A a E e Correta vazias e escreva em Comentário a resposta esperada (sai no gabarito do professor).'],
-    ['8. No app, escolha quantas objetivas e quantas discursivas cada prova terá e quanto valem as discursivas. As objetivas são corrigidas pela câmera; a nota das discursivas é lançada pelo professor na correção.']];
+    ['8. No app, escolha quantas objetivas e quantas discursivas cada prova terá e quanto valem as discursivas. As objetivas são corrigidas pela câmera; a nota das discursivas é lançada pelo professor na correção.'],
+    ['9. Imagem (opcional): nome do arquivo da figura ou gráfico da questão (ex.: grafico_inflacao.png). Depois de enviar a planilha, toque em "Enviar imagens do banco" e selecione os arquivos: o app liga cada imagem à questão pelo nome. A imagem sai na prova logo abaixo do enunciado. Também é possível anexar a imagem direto na questão, em "Ver questões do banco".']];
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(instr), 'Instruções');
   XLSX.writeFile(wb, 'modelo_banco_de_questoes.xlsx');
 }
@@ -277,7 +306,7 @@ function linhasDeTexto(t){
 function cabecalhoDe(a){ return (a && a.cabecalho) || db.cabecalhoInst || null; }
 
 // cabeçalho: imagem ou PDF, recortando as margens brancas
-async function lerCabecalho(arquivo){
+async function lerCabecalho(arquivo, maxW = 2200, limPNG = 900000, maxH = Infinity){
   let canvas;
   if(/pdf$/i.test(arquivo.type) || /\.pdf$/i.test(arquivo.name)){
     await carregarScript('lib/pdf.min.js');
@@ -304,12 +333,12 @@ async function lerCabecalho(arquivo){
   if(x1 < 0) throw new Error('O arquivo parece estar em branco.');
   const mg = Math.round(Math.max(w, h) * 0.004);
   x0 = Math.max(0, x0 - mg); y0 = Math.max(0, y0 - mg); x1 = Math.min(w - 1, x1 + mg); y1 = Math.min(h - 1, y1 + mg);
-  let cw = x1 - x0 + 1, ch = y1 - y0 + 1, esc = Math.min(1, 2200 / cw);
+  let cw = x1 - x0 + 1, ch = y1 - y0 + 1, esc = Math.min(1, maxW / cw, maxH / ch);
   const out = document.createElement('canvas'); out.width = Math.round(cw * esc); out.height = Math.round(ch * esc);
   const o = out.getContext('2d'); o.fillStyle = '#fff'; o.fillRect(0, 0, out.width, out.height);
   o.drawImage(canvas, x0, y0, cw, ch, 0, 0, out.width, out.height);
   let dataUrl = out.toDataURL('image/png'), tipo = 'PNG';
-  if(dataUrl.length > 900000){ dataUrl = out.toDataURL('image/jpeg', 0.9); tipo = 'JPEG'; }
+  if(dataUrl.length > limPNG){ dataUrl = out.toDataURL('image/jpeg', 0.88); tipo = 'JPEG'; }
   return {dataUrl, tipo, w: out.width, h: out.height};
 }
 

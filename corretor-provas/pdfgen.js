@@ -123,6 +123,20 @@
     doc.addImage(cab.dataUrl, cab.tipo || 'PNG', M + (CW - w) / 2, y, w, h, undefined, 'FAST');
     return y + h + 4;
   }
+  // imagem anexada à questão (q.img = {dataUrl, tipo, w, h}): largura da coluna, até 50 mm de altura (60 nas discursivas),
+  // sem ampliar demais imagens pequenas; o apelido faz o PDF guardar cada imagem uma vez só
+  function figura(q, larg, maxH) {
+    var im = q && q.img; if (!im || !im.dataUrl || !im.w || !im.h) return null;
+    var w = Math.min(larg, im.w * 0.35), h = w * im.h / im.w;
+    if (h > maxH) { h = maxH; w = h * im.w / im.h; }
+    return {
+      w: w, h: h,
+      desenhar: function (doc, x, y, largura) {
+        try { doc.addImage(im.dataUrl, im.tipo || 'PNG', x + (largura - w) / 2, y, w, h, 'qimg_' + q.id + '_' + String(im.dataUrl.length), 'FAST'); }
+        catch (e) { console.warn('imagem da questão ' + q.id, e); }
+      }
+    };
+  }
   function blocoQuestao(doc, num, q, perm, valor, mostrarTema, larg) {
     var tamE = 9.5, tamA = 9, ind = 6.5;
     fonte(doc, 'normal', tamE);
@@ -131,7 +145,8 @@
     var alts = perm.map(function (pi) { return doc.splitTextToSize(san(q.alts[pi]), larg - ind); });
     var hT = 5.2, hE = alturaLinhas(enun.length, tamE, 1.25) + 1.2, hA = 0;
     alts.forEach(function (a) { hA += alturaLinhas(a.length, tamA, 1.22) + 0.9; });
-    var total = hT + hE + hA + 3.2;
+    var fig = figura(q, larg, 50), hI = fig ? fig.h + 2.5 : 0;
+    var total = hT + hE + hI + hA + 3.2;
     return {
       altura: total,
       desenhar: function (x, y) {
@@ -142,6 +157,7 @@
         doc.text(doc.splitTextToSize(info, larg - (tx - x))[0] || '', tx, y + 3.3);
         y += hT;
         fonte(doc, 'normal', tamE); doc.text(enun, x, y + 3.1, { lineHeightFactor: 1.25 }); y += hE;
+        if (fig) { fig.desenhar(doc, x, y + 0.5, larg); y += hI; }
         alts.forEach(function (a, k) {
           fonte(doc, 'bold', tamA, NAVY); doc.text('ABCDE'[k] + ')', x + 0.5, y + 3);
           fonte(doc, 'normal', tamA); doc.text(a, x + ind, y + 3, { lineHeightFactor: 1.22 });
@@ -156,8 +172,9 @@
     fonte(doc, 'normal', tamE);
     var enun = doc.splitTextToSize(san(q.enunciado), larg);
     var hT = 5.2, hE = alturaLinhas(enun.length, tamE, 1.25) + 2, hL = nLinhas * dy;
+    var fig = figura(q, larg, 60), hI = fig ? fig.h + 2.5 : 0;
     return {
-      altura: hT + hE + hL + 4,
+      altura: hT + hE + hI + hL + 4,
       desenhar: function (x, y) {
         fonte(doc, 'bold', 9.5, NAVY); doc.text('Questão ' + num, x, y + 3.3);
         var tx = x + doc.getTextWidth('Questão ' + num) + 2.5;
@@ -166,6 +183,7 @@
         doc.text(doc.splitTextToSize(info, larg - (tx - x))[0] || '', tx, y + 3.3);
         y += hT;
         fonte(doc, 'normal', tamE); doc.text(enun, x, y + 3.1, { lineHeightFactor: 1.25 }); y += hE;
+        if (fig) { fig.desenhar(doc, x, y, larg); y += hI; }
         cor(doc, 'Draw', [175, 182, 196]); doc.setLineWidth(0.2);
         for (var i = 1; i <= nLinhas; i++) doc.line(x, y + i * dy, x + larg, y + i * dy);
       }
@@ -454,10 +472,12 @@
         fonte(doc, 'normal', 9); var en = doc.splitTextToSize(san(q.enunciado), CW);
         fonte(doc, 'italic', 9); var rs = doc.splitTextToSize(san('Resposta esperada: ' + (q.comentario || '-')), CW);
         var pv = doc.splitTextToSize(san('Provas: ' + usadas[q.id].join(', ')), CW);
-        var h = 6 + alturaLinhas(en.length + rs.length + pv.length, 9, 1.25) + 6;
+        var fig = figura(q, CW, 50), hI = fig ? fig.h + 2 : 0;
+        var h = 6 + alturaLinhas(en.length + rs.length + pv.length, 9, 1.25) + hI + 6;
         if (y + h > PH - 16) { doc.addPage(); y = M + 4; }
         fonte(doc, 'bold', 9.5, NAVY); doc.text(san('Ref. ' + q.id + (q.tema ? '  ·  ' + q.tema : '')), M, y); y += 5;
         fonte(doc, 'normal', 9); doc.text(en, M, y, { lineHeightFactor: 1.25 }); y += alturaLinhas(en.length, 9, 1.25) + 1;
+        if (fig) { fig.desenhar(doc, M, y - 2, CW); y += hI; }
         fonte(doc, 'italic', 9, [23, 116, 74]); doc.text(rs, M, y, { lineHeightFactor: 1.25 }); y += alturaLinhas(rs.length, 9, 1.25) + 1;
         fonte(doc, 'normal', 8, CINZA); doc.text(pv, M, y, { lineHeightFactor: 1.25 }); y += alturaLinhas(pv.length, 8, 1.25) + 4;
       });

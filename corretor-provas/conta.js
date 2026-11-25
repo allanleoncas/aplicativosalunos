@@ -1,12 +1,13 @@
 // SimulaPro — login, sincronização com o servidor, administrador e instalação do app.
-// Os dados de cada professor ficam no aparelho (IndexedDB, uma chave por conta) e são copiados para o
-// servidor (api/index.php). Sem internet o app continua funcionando e envia depois.
+// Os dados de cada professor (avaliações, turmas e perfil) ficam no aparelho (IndexedDB, uma chave por conta)
+// e são copiados para o servidor (api/index.php). Assim o professor monta a prova no computador e corrige
+// no celular. Sem internet o app continua funcionando e envia depois.
 'use strict';
 
 const CP_API = 'api/index.php';
-// Sem servidor (GitHub Pages, allanleon.com.br/SimulaPro e outros sites estáticos) o app funciona sem login,
-// com os dados só no aparelho. Contas e sincronização só onde existe a API (provas.aprovoia.com.br).
-const MODO_LOCAL = !/(^|\.)aprovoia\.com\.br$/i.test(location.hostname) || location.protocol === 'file:' || /[?&]local=1/.test(location.search);
+// No GitHub Pages (sem servidor) o app funciona sem contas, com os dados só no aparelho.
+// Nos outros endereços (allanleon.com.br/SimulaPro) há login e os dados vão para o servidor.
+const MODO_LOCAL = /github\.io$/i.test(location.hostname) || location.protocol === 'file:' || /[?&]local=1/.test(location.search);
 let sessao = null;               // {token, usuario}
 let sincronizando = false, syncDeNovo = false, syncTimer = null, syncEstado = 'ok';
 
@@ -25,7 +26,7 @@ async function iniciarApp(){
   registrarSW();
   if(MODO_LOCAL){ DB_CHAVE = 'db'; entradaLocal(async () => { await carregarDB(); aba('inicio'); }); return; }
   try { sessao = JSON.parse(localStorage.getItem('cp:sessao') || 'null'); } catch(e){ sessao = null; }
-  if(!sessao){ telaLogin(); return; }
+  if(!sessao){ await telaInicial(); return; }
   await abrirConta();
   // confere a sessão no servidor (sem internet, segue com o que está no aparelho)
   try { const r = await api('eu'); guardarSessao({...sessao, usuario: r.usuario}); atualizarTopo(); if(r.usuario.trocarSenha) trocarSenha(true); sincronizar(); }
@@ -41,7 +42,7 @@ async function abrirConta(){
 }
 function atualizarTopo(){
   const u = sessao && sessao.usuario; if(!u) return;
-  const ini = u.nome.split(/\s+/).filter(Boolean);
+  const ini = u.nome.replace(/\b(prof|profa|profª|professor|professora|dr|dra|me|ma|msc|esp)\.?\s+/gi, '').split(/\s+/).filter(Boolean);
   $('#btnConta').textContent = ((ini[0] || '?')[0] + (ini.length > 1 ? ini[ini.length - 1][0] : '')).toUpperCase();
   $('#btnConta').style.display = '';
 }
@@ -121,53 +122,54 @@ function menuLocal(){
 function bloquearLocal(){ slMarcar(false); location.reload(); }
 
 // ------------------------------------------------------------ tela de login
+async function telaInicial(msg){
+  // sem nenhuma conta no servidor: configuração inicial (cria o administrador)
+  let modo = 'entrar';
+  try { const r = await fetch(CP_API, {cache: 'no-store'}); const j = await r.json(); if(j.ok && !j.temUsuarios) modo = 'configurar'; } catch(e){}
+  telaLogin(msg, modo);
+}
 function telaLogin(msg, modo = 'entrar'){
   $('#btnConta').style.display = 'none';
   const L = $('#login'); L.classList.add('on');
-  const cad = modo === 'cadastrar';
+  const cfg = modo === 'configurar';
   L.innerHTML = '<div class="login-caixa"><div class="login-logo"><svg width="34" height="34" viewBox="0 0 24 24"><circle cx="7" cy="8" r="3.4" fill="#FF3B5F"/><circle cx="17" cy="8" r="3.4" fill="none" stroke="#fff" stroke-width="1.6"/><circle cx="7" cy="17" r="3.4" fill="none" stroke="#fff" stroke-width="1.6"/><circle cx="17" cy="17" r="3.4" fill="#fff"/></svg></div>' +
     '<h1>SimulaPro</h1><p class="muted" style="margin:4px 0 18px">Provas, exames e simulados: provas individuais, correção pela câmera e relatório de notas.</p>' +
     (msg ? '<div class="alerta" style="margin-bottom:12px">' + esc(msg) + '</div>' : '') +
-    (modo === 'aguardando' ? '<div class="card"><h2>Cadastro recebido</h2><p class="muted">O administrador precisa liberar o seu acesso. Depois disso, entre com seu e-mail e senha.</p></div>' +
-       '<button class="btn" onclick="telaLogin()">Voltar para entrar</button>' :
-     '<form class="card" onsubmit="event.preventDefault();' + (cad ? 'fazerCadastro()' : 'fazerLogin()') + '">' +
-      '<h2>' + (cad ? 'Criar conta' : 'Entrar') + '</h2>' +
-      (cad ? '<label class="campo"><span>Nome completo</span><input id="lgNome" autocomplete="name" required placeholder="Ex.: Prof. Dr. Fulano de Tal"></label>' : '') +
-      '<label class="campo"><span>E-mail</span><input id="lgEmail" type="email" autocomplete="email" required></label>' +
-      '<label class="campo"><span>Senha' + (cad ? ' (mínimo 6 caracteres)' : '') + '</span><input id="lgSenha" type="password" autocomplete="' + (cad ? 'new-password' : 'current-password') + '" required minlength="' + (cad ? 6 : 1) + '"></label>' +
-      '<button class="btn acc" id="lgBotao" type="submit" style="margin-top:8px">' + (cad ? 'Criar conta' : 'Entrar') + '</button></form>' +
-      '<p style="text-align:center;margin-top:12px">' + (cad ? 'Já tem conta? <button class="link" onclick="telaLogin()">Entrar</button>'
-        : 'Ainda não tem conta? <button class="link" onclick="telaLogin(null,\'cadastrar\')">Criar conta</button>') + '</p>' +
-      (cad ? '' : '<p class="lbl" style="text-align:center;margin-top:6px">Esqueceu a senha? Peça ao administrador uma senha nova.</p>')) +
+    '<form class="card" onsubmit="event.preventDefault();' + (cfg ? 'fazerConfigurar()' : 'fazerLogin()') + '">' +
+    (cfg ? '<h2>Configuração inicial</h2><p class="muted" style="margin-bottom:10px">Ainda não há nenhuma conta. Esta será a conta do <b>administrador</b>, que cadastra os outros professores.</p>' +
+        '<label class="campo"><span>Nome completo</span><input id="lgNome" type="text" autocomplete="name" required placeholder="Ex.: Prof. Dr. Fulano de Tal"></label>'
+      : '<h2>Entrar</h2>') +
+    '<label class="campo"><span>Usuário</span><input id="lgUsuario" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required placeholder="nome.sobrenome"></label>' +
+    '<label class="campo"><span>Senha' + (cfg ? ' (mínimo 5 caracteres)' : '') + '</span><input id="lgSenha" type="password" autocomplete="' + (cfg ? 'new-password' : 'current-password') + '" required minlength="' + (cfg ? 5 : 1) + '" style="width:100%;padding:11px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font-size:15px"></label>' +
+    '<button class="btn acc" id="lgBotao" type="submit" style="margin-top:8px">' + (cfg ? 'Criar e entrar' : 'Entrar') + '</button></form>' +
+    (cfg ? '' : '<p class="lbl" style="text-align:center;margin-top:10px">Só entram professores cadastrados pelo administrador. Esqueceu a senha? Peça uma senha nova a ele.</p>') +
     '</div>';
-  setTimeout(() => { const i = $(cad ? '#lgNome' : '#lgEmail'); if(i) i.focus(); }, 50);
+  setTimeout(() => { const i = $(cfg ? '#lgNome' : '#lgUsuario'); if(i) i.focus(); }, 50);
 }
 function ocupado(b){ const x = $('#lgBotao'); if(x){ x.disabled = b; x.style.opacity = b ? .6 : 1; } }
+async function entrouNaConta(r){
+  guardarSessao({token: r.token, usuario: r.usuario});
+  await abrirConta(); sincronizar(true);
+  if(r.usuario.trocarSenha) trocarSenha(true);
+}
 async function fazerLogin(){
   ocupado(true);
-  try {
-    const r = await api('entrar', {email: $('#lgEmail').value, senha: $('#lgSenha').value});
-    guardarSessao({token: r.token, usuario: r.usuario});
-    await abrirConta(); sincronizar(true);
-    if(r.usuario.trocarSenha) trocarSenha(true);
-  } catch(e){ ocupado(false); telaLogin(e.status === 403 && e.dados && e.dados.status === 'pendente' ? null : e.message, e.dados && e.dados.status === 'pendente' ? 'aguardando' : 'entrar');
-    if($('#lgEmail')) $('#lgEmail').value = e.dados && e.dados.status === 'pendente' ? '' : ($('#lgEmail').value || ''); }
+  const usuario = $('#lgUsuario').value;
+  try { await entrouNaConta(await api('entrar', {usuario, senha: $('#lgSenha').value})); }
+  catch(e){ ocupado(false); telaLogin(e.status ? e.message : 'Sem conexão com o servidor. Confira a internet e tente de novo.'); $('#lgUsuario').value = usuario; }
 }
-async function fazerCadastro(){
+async function fazerConfigurar(){
   ocupado(true);
-  const nome = $('#lgNome').value, email = $('#lgEmail').value;
-  try {
-    const r = await api('cadastrar', {nome, email, senha: $('#lgSenha').value});
-    if(r.token){ guardarSessao({token: r.token, usuario: r.usuario}); await abrirConta(); toast('Conta criada. Você é o administrador.'); sincronizar(); }
-    else telaLogin(null, 'aguardando');
-  } catch(e){ ocupado(false); telaLogin(e.message, 'cadastrar'); $('#lgNome').value = nome; $('#lgEmail').value = email; }
+  const nome = $('#lgNome').value, usuario = $('#lgUsuario').value;
+  try { await entrouNaConta(await api('configurar', {nome, usuario, senha: $('#lgSenha').value})); toast('Pronto! Você é o administrador.'); }
+  catch(e){ ocupado(false); if(e.status === 409){ telaLogin(e.message); return; } telaLogin(e.message, 'configurar'); $('#lgNome').value = nome; $('#lgUsuario').value = usuario; }
 }
 
 // ------------------------------------------------------------ menu da conta
 function menuConta(){
   if(MODO_LOCAL){ menuLocal(); return; }
   const u = sessao.usuario;
-  abrirFolha('<h2 style="margin-bottom:2px">' + esc(u.nome) + '</h2><p class="lbl">' + esc(u.email) + (u.papel === 'admin' ? ' · administrador' : '') + '</p>' +
+  abrirFolha('<h2 style="margin-bottom:2px">' + esc(u.nome) + '</h2><p class="lbl">' + 'Usuário: ' + esc(u.usuario || u.email) + (u.papel === 'admin' ? ' · administrador' : '') + '</p>' +
     '<p class="lbl" style="margin-top:6px">' + textoSync() + '</p>' +
     '<div class="stack" style="margin-top:14px">' +
     (u.papel === 'admin' ? '<button class="btn" onclick="fecharFolha();aba(\'admin\')">Administração (professores)</button>' : '') +
@@ -182,7 +184,7 @@ function fecharFolha(){ const f = $('#folha'); if(f) f.classList.remove('on'); }
 function trocarSenha(obrigatoria){
   abrirFolha('<h2>' + (obrigatoria ? 'Crie uma senha nova' : 'Trocar senha') + '</h2>' + (obrigatoria ? '<p class="muted">Você entrou com uma senha provisória dada pelo administrador.</p>' : '') +
     '<form onsubmit="event.preventDefault();salvarSenha()"><label class="campo"><span>Senha atual' + (obrigatoria ? ' (a provisória)' : '') + '</span><input id="snAtual" type="password" required autocomplete="current-password"></label>' +
-    '<label class="campo"><span>Nova senha (mínimo 6 caracteres)</span><input id="snNova" type="password" minlength="6" required autocomplete="new-password"></label>' +
+    '<label class="campo"><span>Nova senha (mínimo 5 caracteres)</span><input id="snNova" type="password" minlength="5" required autocomplete="new-password"></label>' +
     '<div class="stack" style="margin-top:10px"><button class="btn acc" type="submit">Salvar</button>' + (obrigatoria ? '' : '<button class="btn sec" type="button" onclick="fecharFolha()">Cancelar</button>') + '</div></form>');
 }
 async function salvarSenha(){
@@ -192,20 +194,62 @@ async function salvarSenha(){
 async function sair(){
   fecharFolha();
   if(navigator.onLine){ try { await sincronizar(true); } catch(e){} }
-  const pendente = Object.values(db.avaliacoes).some(a => !db._sinc || !db._sinc[a.id] || db._sinc[a.id].h !== hashAv(a)) || (db._excluir || []).length;
+  const pendente = temPendencias();
   if(pendente && !confirm('Há alterações que ainda não foram enviadas ao servidor (sem internet?). Se sair agora, elas ficam só neste aparelho. Sair mesmo assim?')) return;
   try { await api('sair'); } catch(e){}
   // sem pendências, apaga a cópia deste aparelho (útil em computador compartilhado)
   if(!pendente){ try { await IDB.set(DB_CHAVE, null); } catch(e){} }
   sairLocal();
 }
-function sairLocal(msg){ guardarSessao(null); db = {versao: 2, avaliacoes: {}, ativa: null}; DB_CHAVE = 'db'; telaLogin(msg); }
+function sairLocal(msg){ guardarSessao(null); db = {versao: 2, avaliacoes: {}, ativa: null}; DB_CHAVE = 'db'; telaInicial(msg); }
 
 // ------------------------------------------------------------ sincronização
 function hashAv(a){ const s = JSON.stringify(a); let h = 2166136261; for(let i = 0; i < s.length; i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36) + ':' + s.length; }
 function agendarSync(){ if(!sessao) return; clearTimeout(syncTimer); syncTimer = setTimeout(() => sincronizar(), 2500); }
 function marcarSync(e){ syncEstado = e; const el = $('#syncInfo'); if(el){ el.textContent = textoSync(); el.dataset.e = e; } }
 function textoSync(){ return {ok: '☁ Salvo no servidor', enviando: '↻ Sincronizando…', offline: '⚠ Sem internet: salvo só neste aparelho', erro: '⚠ Não foi possível sincronizar'}[syncEstado] || ''; }
+// O que vai para o servidor: avaliações, turmas e o perfil (nome do professor e cabeçalho da instituição).
+// Cada tipo guarda em db o que já foi sincronizado (_sinc*) e o que foi excluído aqui (_excluir*).
+const TIPOS_SYNC = [
+  {tipo: 'avaliacoes', sinc: '_sinc', excl: '_excluir', itens: () => db.avaliacoes,
+    tirar: id => { delete db.avaliacoes[id]; if(db.ativa === id) db.ativa = null; }, por: (id, x) => { db.avaliacoes[id] = x; }},
+  {tipo: 'turmas', sinc: '_sincT', excl: '_excluirT', itens: () => (db.turmas = db.turmas || {}),
+    tirar: id => { delete db.turmas[id]; }, por: (id, x) => { db.turmas = db.turmas || {}; db.turmas[id] = x; }},
+  {tipo: 'perfil', sinc: '_sincP', excl: '_excluirP', itens: () => ({perfil: {id: 'perfil', professor: db.professor || '', cabecalhoInst: db.cabecalhoInst || null}}),
+    tirar: () => {}, por: (id, x) => { if(x.professor) db.professor = x.professor; db.cabecalhoInst = x.cabecalhoInst || null; }},
+];
+function temPendencias(){
+  return TIPOS_SYNC.some(T => { const m = db[T.sinc] || {};
+    return (db[T.excl] || []).length || Object.values(T.itens()).some(x => !m[x.id] || m[x.id].h !== hashAv(x)); });
+}
+async function sincronizarTipo(T){
+  let mudou = false;
+  const m = db[T.sinc] = db[T.sinc] || {}; db[T.excl] = db[T.excl] || [];
+  // 1. exclusões feitas neste aparelho
+  for(const id of db[T.excl].slice()){ await api('excluir', {tipo: T.tipo, id}); delete m[id]; db[T.excl] = db[T.excl].filter(x => x !== id); }
+  // 2. o que mudou no servidor (outro aparelho)
+  const {itens: lista} = await api('listar', {tipo: T.tipo});
+  const baixar = [];
+  for(const s of lista){
+    const local = T.itens()[s.id], meta = m[s.id];
+    const intocada = local && meta && hashAv(local) === meta.h;
+    if(s.excluida){ if(local && (!meta || intocada) && s.t > (meta ? meta.t : 0)){ T.tirar(s.id); delete m[s.id]; mudou = true; } continue; }
+    // perfil: um aparelho novo (sem nada sincronizado) recebe o do servidor
+    if(!local || (s.t > (meta ? meta.t : 0) && (!meta || intocada))) baixar.push(s.id);
+  }
+  for(let i = 0; i < baixar.length; i += 20){
+    const r = await api('baixar', {tipo: T.tipo, ids: baixar.slice(i, i + 20)});
+    Object.entries(r.itens).forEach(([id, x]) => { const d = JSON.parse(x.txt); T.por(id, d); m[id] = {t: x.t, h: hashAv(T.itens()[id] || d)}; mudou = true; });
+  }
+  // 3. o que mudou neste aparelho
+  for(const x of Object.values(T.itens())){
+    const h = hashAv(x);
+    if(m[x.id] && m[x.id].h === h) continue;
+    const r = await api('enviar', {tipo: T.tipo, id: x.id, dadosTxt: JSON.stringify(x)});
+    m[x.id] = {t: r.t, h};
+  }
+  return mudou;
+}
 async function sincronizar(avisar){
   if(!sessao) return;
   if(sincronizando){ syncDeNovo = true; return; }
@@ -213,29 +257,7 @@ async function sincronizar(avisar){
   sincronizando = true; marcarSync('enviando');
   let mudou = false;
   try {
-    db._sinc = db._sinc || {}; db._excluir = db._excluir || [];
-    // 1. exclusões feitas neste aparelho
-    for(const id of db._excluir.slice()){ await api('excluir', {id}); delete db._sinc[id]; db._excluir = db._excluir.filter(x => x !== id); }
-    // 2. o que mudou no servidor (outro aparelho)
-    const {avaliacoes: lista} = await api('listar');
-    const baixar = [];
-    for(const s of lista){
-      const local = db.avaliacoes[s.id], meta = db._sinc[s.id];
-      const intocada = local && meta && hashAv(local) === meta.h;
-      if(s.excluida){ if(local && (!meta || intocada) && s.t > (meta ? meta.t : 0)){ delete db.avaliacoes[s.id]; delete db._sinc[s.id]; if(db.ativa === s.id) db.ativa = null; mudou = true; } continue; }
-      if(!local || (s.t > (meta ? meta.t : 0) && (!meta || intocada))) baixar.push(s.id);
-    }
-    for(let i = 0; i < baixar.length; i += 20){
-      const r = await api('baixar', {ids: baixar.slice(i, i + 20)});
-      Object.entries(r.avaliacoes).forEach(([id, x]) => { db.avaliacoes[id] = x.dados; db._sinc[id] = {t: x.t, h: hashAv(x.dados)}; mudou = true; });
-    }
-    // 3. o que mudou neste aparelho
-    for(const a of Object.values(db.avaliacoes)){
-      const h = hashAv(a);
-      if(db._sinc[a.id] && db._sinc[a.id].h === h) continue;
-      const r = await api('enviar', {id: a.id, dados: a});
-      db._sinc[a.id] = {t: r.t, h};
-    }
+    for(const T of TIPOS_SYNC) if(await sincronizarTipo(T)) mudou = true;
     await IDB.set(DB_CHAVE, db);
     marcarSync('ok');
     if(avisar) toast('Tudo sincronizado');
@@ -259,24 +281,29 @@ async function renderAdmin(){
   if(!sessao || sessao.usuario.papel !== 'admin'){ el.innerHTML = '<div class="card">Só o administrador vê esta tela.</div>'; return; }
   if(!adminLista){ el.innerHTML = '<button class="link" onclick="aba(\'inicio\')">‹ Início</button><div class="card"><p class="muted">Carregando professores…</p></div>';
     try { adminLista = (await api('admin_usuarios')).usuarios; } catch(e){ el.innerHTML = '<div class="card"><div class="alerta">' + esc(e.message) + '</div></div>'; return; } }
-  const L = adminLista, pend = L.filter(u => u.status === 'pendente').length;
+  const L = adminLista, pend = L.filter(u => u.status === 'bloqueado').length;
   const tot = L.reduce((s, u) => ({av: s.av + u.uso.avaliacoes, pr: s.pr + u.uso.provas, co: s.co + u.uso.corrigidas}), {av: 0, pr: 0, co: 0});
   const data = t => t ? new Date(t * 1000).toLocaleDateString('pt-BR') : 'nunca';
   let h = '<button class="link" onclick="aba(\'inicio\')">‹ Início</button><h2 style="margin:4px 2px 10px">Administração</h2>' +
-    '<div class="painel"><div class="kp"><span class="lbl">Professores</span><b>' + L.length + '</b></div><div class="kp"><span class="lbl">Aguardando liberação</span><b' + (pend ? ' style="color:var(--acc)"' : '') + '>' + pend + '</b></div>' +
+    '<div class="painel"><div class="kp"><span class="lbl">Professores</span><b>' + L.length + '</b></div><div class="kp"><span class="lbl">Bloqueados</span><b>' + pend + '</b></div>' +
     '<div class="kp"><span class="lbl">Provas geradas</span><b>' + tot.pr + '</b></div><div class="kp"><span class="lbl">Provas corrigidas</span><b>' + tot.co + '</b></div></div>' +
-    '<p class="lbl" style="margin:0 2px 10px">Para um professor novo usar o app, peça que ele abra este endereço e toque em "Criar conta"; depois libere aqui.</p>';
+    '<form class="card" onsubmit="event.preventDefault();adminCriar()"><h2>Cadastrar professor</h2>' +
+    '<p class="lbl" style="margin-bottom:8px">Só entram professores cadastrados aqui. O app cria uma senha provisória para você enviar; no primeiro acesso, o professor cria a senha dele.</p>' +
+    '<label class="campo"><span>Nome completo</span><input id="adNome" type="text" required placeholder="Ex.: Prof. Daniel Manzano"></label>' +
+    '<label class="campo"><span>Usuário</span><input id="adUsuario" type="text" required autocapitalize="none" spellcheck="false" placeholder="nome.sobrenome"></label>' +
+    '<button class="btn acc" type="submit" style="margin-top:8px">Cadastrar</button></form>';
   L.forEach(u => {
     const eu = u.id === sessao.usuario.id;
-    const pill = u.status === 'ativo' ? '<span class="pill ok">liberado</span>' : u.status === 'pendente' ? '<span class="pill warn">aguardando</span>' : '<span class="pill" style="background:#fde2e2;color:#a3122e">bloqueado</span>';
+    const pill = u.status === 'ativo' ? '<span class="pill ok">' + (u.trocarSenha ? 'senha provisória' : 'ativo') + '</span>' : '<span class="pill" style="background:#fde2e2;color:#a3122e">bloqueado</span>';
     h += '<div class="card"><div class="row" style="align-items:flex-start"><div style="flex:1;min-width:0"><b>' + esc(u.nome) + '</b>' + (u.papel === 'admin' ? ' <span class="pill">admin</span>' : '') +
-      '<div class="lbl" style="word-break:break-all">' + esc(u.email) + '</div><div class="lbl">Cadastro ' + data(u.criado) + ' · último acesso ' + data(u.ultimo) + '</div></div><div style="flex:none">' + pill + '</div></div>' +
+      '<div class="lbl" style="word-break:break-all">Usuário: ' + esc(u.usuario || u.email) + '</div><div class="lbl">Cadastro ' + data(u.criado) + ' · último acesso ' + data(u.ultimo) + '</div></div><div style="flex:none">' + pill + '</div></div>' +
       '<p class="lbl" style="margin-top:8px">' + u.uso.avaliacoes + ' avaliações · ' + u.uso.provas + ' provas geradas · ' + u.uso.corrigidas + ' corrigidas · ' + u.uso.alunos + ' alunos</p>' +
       (eu ? '<p class="lbl" style="margin-top:6px">Esta é a sua conta.</p>' : '<div class="row" style="margin-top:10px;flex-wrap:wrap;gap:8px">' +
-        (u.status !== 'ativo' ? '<button class="btn acc" style="flex:1" onclick="adminMudar(\'' + u.id + '\',{status:\'ativo\'})">Liberar</button>' : '') +
+        (u.status !== 'ativo' ? '<button class="btn acc" style="flex:1" onclick="adminMudar(\'' + u.id + '\',{status:\'ativo\'})">Desbloquear</button>' : '') +
         (u.status !== 'bloqueado' ? '<button class="btn sec" style="flex:1" onclick="adminMudar(\'' + u.id + '\',{status:\'bloqueado\'},\'Bloquear ' + esc(u.nome).replace(/'/g, '') + '?\')">Bloquear</button>' : '') +
         (u.status === 'ativo' ? '<button class="btn sec" style="flex:1" onclick="adminMudar(\'' + u.id + '\',{papel:\'' + (u.papel === 'admin' ? 'professor' : 'admin') + '\'})">' + (u.papel === 'admin' ? 'Tirar admin' : 'Tornar admin') + '</button>' +
-          '<button class="btn sec" style="flex:1" onclick="adminSenha(\'' + u.id + '\')">Senha nova</button>' : '') + '</div>') + '</div>';
+          '<button class="btn sec" style="flex:1" onclick="adminSenha(\'' + u.id + '\')">Senha nova</button>' : '') +
+        '<button class="btn sec" style="flex:1;color:var(--acc)" onclick="adminExcluir(\'' + u.id + '\')">Excluir</button></div>') + '</div>';
   });
   h += '<button class="btn sec" onclick="adminLista=null;renderAdmin()">Atualizar lista</button>';
   el.innerHTML = h;
@@ -285,13 +312,26 @@ async function adminMudar(uid, m, pergunta){
   if(pergunta && !confirm(pergunta)) return;
   try { await api('admin_mudar', {uid, ...m}); adminLista = null; renderAdmin(); toast('Feito'); } catch(e){ alert(e.message); }
 }
+async function adminCriar(){
+  const nome = $('#adNome').value, usuario = $('#adUsuario').value.trim().toLowerCase();
+  try { const r = await api('admin_criar', {nome, usuario}); adminLista = null; await renderAdmin(); mostrarSenhaProvisoria(r.usuario, r.senha, true); }
+  catch(e){ alert(e.message); }
+}
+function mostrarSenhaProvisoria(u, senha, novo){
+  abrirFolha('<h2>' + (novo ? 'Professor cadastrado' : 'Senha provisória') + '</h2><p class="muted">Envie para ' + esc(u.nome) + ' o endereço do app, o usuário e a senha provisória. No primeiro acesso, o app pede para ele criar uma senha nova.</p>' +
+    '<p class="lbl" style="margin-top:12px">Endereço</p><div style="font-family:monospace;user-select:all;word-break:break-all">' + esc(location.origin + location.pathname) + '</div>' +
+    '<p class="lbl" style="margin-top:8px">Usuário</p><div class="big" style="font-family:monospace;user-select:all">' + esc(u.usuario || u.email) + '</div>' +
+    '<p class="lbl" style="margin-top:8px">Senha provisória</p><div class="big" style="font-family:monospace;letter-spacing:.08em;margin-bottom:14px;user-select:all">' + esc(senha) + '</div><button class="btn" onclick="fecharFolha()">Pronto</button>');
+}
+async function adminExcluir(uid){
+  const u = adminLista.find(x => x.id === uid);
+  if(!confirm('Excluir ' + u.nome + '? A conta e todas as provas, turmas e notas dele no servidor serão apagadas. Isso não pode ser desfeito.')) return;
+  try { await api('admin_excluir', {uid}); adminLista = null; renderAdmin(); toast('Professor excluído'); } catch(e){ alert(e.message); }
+}
 async function adminSenha(uid){
   const u = adminLista.find(x => x.id === uid);
   if(!confirm('Criar uma senha provisória para ' + u.nome + '? A senha atual dele deixa de valer.')) return;
-  try { const r = await api('admin_senha', {uid});
-    abrirFolha('<h2>Senha provisória</h2><p class="muted">Envie para ' + esc(u.nome) + ' (' + esc(u.email) + '). No primeiro acesso, o app pede para criar uma senha nova.</p>' +
-      '<div class="big" style="font-family:monospace;letter-spacing:.08em;margin:14px 0;user-select:all">' + esc(r.senha) + '</div><button class="btn" onclick="fecharFolha()">Pronto</button>');
-  } catch(e){ alert(e.message); }
+  try { const r = await api('admin_senha', {uid}); adminLista = null; await renderAdmin(); mostrarSenhaProvisoria(u, r.senha, false); } catch(e){ alert(e.message); }
 }
 
 // ------------------------------------------------------------ instalar (web app)

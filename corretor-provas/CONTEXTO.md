@@ -9,6 +9,15 @@ Estado em 19/11/2026 (modelo de prova aprovado pelo professor às 10h). Document
 - `.htaccess` na pasta: HTTPS obrigatório, câmera liberada, `testes/` e `gerador/` bloqueados, sem cache para `index.html`, `sw.js` e manifest. O endereço é sensível a maiúsculas: o .zip traz também `public_html/simulapro/` que redireciona para `/SimulaPro/`.
 - Os dados no navegador são por endereço: o que está no GitHub Pages não aparece sozinho no site novo (usar *Exportar backup* / *Importar*; a senha de entrada é criada de novo).
 
+## 0c. Login e dados no servidor do SimulaPro (25/11/2026, versão 20261125h)
+- Decisão do professor (cartão): em **allanleon.com.br/SimulaPro** há login e os dados de cada professor (avaliações, turmas e perfil = nome + cabeçalho da instituição) ficam no servidor dele, em **arquivos JSON protegidos fora do public_html** (`simulapro-dados/`, ao lado de `public_html`; se não tiver permissão, cai em `SimulaPro/_dados`, bloqueada). Objetivo: montar a prova no computador e corrigir no celular. No GitHub Pages (`github.io`, `file:` ou `?local=1`) continua sem servidor (`MODO_LOCAL`, senha local de 4h).
+- **Só entra quem o administrador cadastrou.** Sem nenhuma conta, a tela é "Configuração inicial" (`configurar`, cria o administrador; recusada com 409 depois da primeira). Login por **usuário** (ex.: `allan.silva`; no JSON ainda fica no campo `email`). Senha mínima 5 caracteres, `password_hash`; 5 erros = 10 min. Sessão Bearer 90 dias.
+- Administração (menu da conta): **Cadastrar professor** (nome + usuário → senha provisória de 8 letras, troca obrigatória no 1º acesso), bloquear/desbloquear, tornar/tirar admin, senha nova, **Excluir** (apaga conta e dados do servidor). Não há mais "Criar conta" nem "aguardando liberação".
+- API `api/index.php` (POST JSON `acao`): `configurar, entrar, eu, sair, senha, listar, baixar, enviar, excluir` (com `tipo`: `avaliacoes` | `turmas` | `perfil`), `admin_usuarios, admin_criar, admin_mudar, admin_senha, admin_excluir`. Arquivos: `usuarios.json`, `sessoes.json`, `<tipo>/<id do professor>/<id>.json` = `{id, t, excluida, txt}`.
+- **Os dados vão e voltam como texto JSON (`dadosTxt`/`txt`)**: com arrays do PHP, `resultados: {}` virava `[]` e as correções feitas no outro aparelho não eram enviadas. A versão aprovoIA (`provas/api`) ainda tem esse problema.
+- Sincronização (`TIPOS_SYNC` em `conta.js`): mesma regra de antes para os três tipos; exclusão de turma vai em `db._excluirT`. `.htaccess` repassa o cabeçalho Authorization e bloqueia `_dados`.
+- Testado (PHP 8.3 local + Playwright): configuração inicial, cadastro do Daniel com senha provisória e troca, computador cria exemplo + turma → celular recebe; celular lança correção → computador recebe; turma excluída some no celular; Daniel não vê dados do Allan nem a administração; 5 erros bloqueiam; API sem login = 401; excluir professor desconecta ele. OMR e PDFs não mudaram.
+
 ## 1. O que é
 
 Webapp para professores, criado pelo Prof. Dr. Allan Leon Casemiro da Silva (UNIFADAP, Tupã/SP), com três funções:

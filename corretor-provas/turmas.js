@@ -54,7 +54,7 @@ function novaTurma(){
 function abrirTurma(id){ turmaAberta = id; renderTurmaSalva(); $('#res').classList.add('on'); $('#res').scrollTop = 0; }
 function fecharTurma(){
   const t = db.turmas[turmaAberta];
-  if(t && !t.alunos.length && !t.nome){ delete db.turmas[t.id]; salvarDB(); }
+  if(t && !t.alunos.length && !t.nome){ delete db.turmas[t.id]; (db._excluirT = db._excluirT || []).push(t.id); salvarDB(); }
   turmaAberta = null; fecharRes(); render();
 }
 function renderTurmaSalva(){
@@ -106,7 +106,7 @@ function tirarAluno(i){
 function excluirTurma(){
   const t = db.turmas[turmaAberta];
   if(!confirm('Excluir a turma "' + (t.nome || 'Turma') + '"? As avaliações que já usaram a lista continuam com os alunos delas.')) return;
-  delete db.turmas[t.id]; Object.values(db.avaliacoes).forEach(a => { if(a.turmaId === t.id) delete a.turmaId; });
+  delete db.turmas[t.id]; (db._excluirT = db._excluirT || []).push(t.id); Object.values(db.avaliacoes).forEach(a => { if(a.turmaId === t.id) delete a.turmaId; });
   salvarDB(); turmaAberta = null; fecharRes(); render();
 }
 function provaDaTurma(id){

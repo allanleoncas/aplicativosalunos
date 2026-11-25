@@ -219,7 +219,7 @@
     var doc = novo(), MAXC = 8;
     var pts = E.pts.slice(-MAXC), off = E.pts.length - pts.length;
     var rots = pts.map(function (p, i) { return p.data ? fmtData(p.data).slice(0, 5) : 'P' + (off + i + 1); });
-    var y = titulo(doc, 'Evolução da turma', G.nome, G.tipo + '  ·  ' + E.pts.length + ' avaliações  ·  Emitido em ' + new Date().toLocaleDateString('pt-BR'));
+    var y = titulo(doc, 'Evolução da turma', G.nome, G.tipo + '  ·  ' + (function () { var nA = E.pts.filter(function (p) { return p.tipo === 'Avaliação'; }).length, nR = E.pts.length - nA; return nA + ' avaliaç' + (nA === 1 ? 'ão' : 'ões') + (nR ? ' e ' + nR + ' rodada' + (nR > 1 ? 's' : '') + ' da trilha' : ''); })() + '  ·  Emitido em ' + new Date().toLocaleDateString('pt-BR'));
     y = secao(doc, y, 'Média da turma (de 0 a 10)', 60);
     y = grafico(doc, y, pts.map(function (p) { return p.media10; }), rots, 10);
     y = tabela(doc, y + 2, [{ t: 'Data', w: 18, al: 'c' }, { t: 'Avaliação', w: 112 }, { t: 'Alunos', w: 18, al: 'c' }, { t: 'Média', w: CW - 148, al: 'c' }],

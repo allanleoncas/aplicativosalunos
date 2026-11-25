@@ -219,6 +219,7 @@ function graficoLinha(valores, rotulos, max){
 const rotPt = (p, i) => p.data ? fmtData(p.data).slice(0, 5) : 'P' + (i + 1);
 function seta(t){ return t == null ? '<span class="lbl">–</span>' : t >= 0.5 ? '<b class="anl-ok">▲ ' + fmt(Math.round(t * 10) / 10) + '</b>' : t <= -0.5 ? '<b class="anl-bad">▼ ' + fmt(Math.round(-t * 10) / 10) + '</b>' : '<span class="lbl">=</span>'; }
 function renderDesempenho(){
+  carregarTrilhasEvolucao();
   const pts = pontosAvaliacoes();
   let h = '<button class="link" onclick="aba(\'inicio\')">‹ Início</button><div class="anl-seg"><button class="' + (desTela === 'evolucao' ? 'on' : '') + '" onclick="desTela=\'evolucao\';render()">Evolução</button>' +
     '<button class="' + (desTela === 'painel' ? 'on' : '') + '" onclick="desTela=\'painel\';render()">Painel do curso</button></div>';
@@ -229,7 +230,7 @@ function renderDesempenho(){
     h += '<div class="card"><label class="campo"><span>Turma ou disciplina</span><select onchange="desGrupo=this.value;render()">' +
       ['Turma', 'Disciplina'].map(tp => { const gs = G.filter(x => x.tipo === tp); return gs.length ? '<optgroup label="' + (tp === 'Turma' ? 'Turmas' : 'Disciplinas') + '">' + gs.map(x => '<option value="' + esc(x.id) + '"' + (x.id === desGrupo ? ' selected' : '') + '>' + esc(x.nome) + ' (' + x.pts.length + ')</option>').join('') + '</optgroup>' : ''; }).join('') + '</select></label>';
     h += '<h3 class="anl-sub">Média da turma (de 0 a 10)</h3>' + graficoLinha(E.pts.map(p => p.media10), E.pts.map(rotPt), 10) +
-      '<ul class="anl-pts">' + E.pts.map((p, i) => '<li><b>' + esc(rotPt(p, i)) + '</b> ' + esc(p.tipo === 'Avaliação' ? (g.tipo === 'Turma' ? p.disciplina + ' · ' : '') + p.titulo : p.tipo + ' · ' + p.titulo) + ' <span class="lbl">· ' + p.n + ' alunos · média ' + fmt(Math.round(p.media10 * 10) / 10) + '</span></li>').join('') + '</ul>';
+      '<ul class="anl-pts">' + E.pts.map((p, i) => '<li><b>' + esc(rotPt(p, i)) + '</b> ' + esc(p.tipo === 'Avaliação' ? (g.tipo === 'Turma' ? p.disciplina + ' · ' : '') + p.titulo : p.tipo + ': ' + p.titulo) + ' <span class="lbl">· ' + p.n + ' alunos · média ' + fmt(Math.round(p.media10 * 10) / 10) + '</span></li>').join('') + '</ul>';
     if(E.pts.length < 2) h += '<p class="lbl">Quando houver mais de uma avaliação corrigida para esta turma, o gráfico mostra a evolução.</p>';
     const eixo = E.comps.length ? E.comps : E.temas;
     if(eixo.length) h += '<h3 class="anl-sub">' + (E.comps.length ? 'Competências' : 'Temas') + ' ao longo do tempo</h3><div class="anl-tab"><table><tr><th></th>' + E.pts.map((p, i) => '<th>' + esc(rotPt(p, i)) + '</th>').join('') + '</tr>' +
@@ -285,3 +286,35 @@ function baixarPainel(){
     '.anl-tab th:first-child,.anl-tab td:first-child{text-align:left;white-space:normal;min-width:120px}.anl-tab th{color:var(--mute);font-weight:600;font-size:12px}';
   document.head.appendChild(s);
 })();
+
+// =================== rodadas da trilha ENADE na evolução ===================
+// as trilhas ficam no servidor (trilhas.js / api/trilha.php): carrega uma vez ao abrir "Desempenho"
+let trEvo = null, trEvoCarregando = false;
+async function carregarTrilhasEvolucao(){
+  if(trEvo || trEvoCarregando || typeof apiTrilha !== 'function' || MODO_LOCAL || !sessao) return;
+  trEvoCarregando = true;
+  try {
+    const L = (await apiTrilha('trilha_listar')).trilhas || [], ds = [];
+    for(const t of L) if(t.calendario.some(c => c.responderam)) ds.push(await apiTrilha('trilha_ver', {id: t.id}));
+    trEvo = ds;
+  } catch(e){ console.warn(e); trEvo = null; }
+  trEvoCarregando = false;
+  if(trEvo && trEvo.length && abaAtual === 'desempenho') render();
+}
+registrarFonteEvolucao(() => {
+  if(!trEvo || typeof estatTrilha !== 'function') return [];
+  const pts = [];
+  trEvo.forEach(D => {
+    const T = D.trilha, E = estatTrilha(D), R = D.resp || {}, turma = (db.turmas || {})[T.turmaId];
+    E.porRodada.forEach((pr, i) => {
+      if(!pr.responderam) return;
+      const temas = {};
+      Object.values(R[pr.c.k] || {}).forEach(r => { if(r.enviado) r.qs.forEach((qid, j) => { const q = D.banco[qid]; if(q) acumula(temas, q.tema || 'Geral', r.certas[j] ? 1 : 0); }); });
+      pts.push({id: T.id + ':' + pr.c.k, tipo: 'Trilha', titulo: T.nome + ' · rodada ' + (pr.c.k + 1), data: pr.c.abre,
+        curso: T.curso || (turma && turma.curso) || 'Sem curso', disciplina: T.disciplina || 'Trilha ENADE', turmaId: T.turmaId || '',
+        media10: pr.media, n: pr.responderam, temas: listaAcum(temas), comps: [],
+        alunos: E.linhas.filter(l => l.notas[i] != null).map(l => ({chave: chaveAluno(l.a), nome: l.a.nome, ra: l.a.ra || '', nota10: l.notas[i]}))});
+    });
+  });
+  return pts;
+});

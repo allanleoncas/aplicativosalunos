@@ -34,7 +34,7 @@ function estruturaEnade(a){
   });
   return out;
 }
-const VERSAO_APP = '20261125v'; // mude a cada publicação para o navegador não usar arquivos antigos
+const VERSAO_APP = '20261125w'; // mude a cada publicação para o navegador não usar arquivos antigos
 const LETRAS = 'ABCDE';
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));

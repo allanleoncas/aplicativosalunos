@@ -95,6 +95,12 @@ Também há um **exemplo de demonstração** (avaliação `DEMO`, 3 alunos) e o 
 - **PDF** (`figura()` em `pdfgen.js`): abaixo do enunciado, centralizada, na largura da coluna e até 50 mm de altura nas objetivas (60 mm nas discursivas, na largura da página); imagens pequenas não são ampliadas demais. Cada imagem entra uma vez no arquivo (apelido), então o PDF da turma não cresce por aluno. O gabarito do professor mostra a imagem das discursivas. Se passar de 2 páginas, o aviso de sempre aparece.
 - Testado (Playwright): banco com 5 objetivas e 1 discursiva com imagem (PNG sem extensão no nome, foto JPEG 3000×4000), envio em lote, anexar/remover pela tela, substituir banco mantendo imagens; 13 provas com 8 objetivas e até 4 imagens = 2 páginas cada (PDF de 690 KB); com 1 discursiva a mais e 3 imagens a prova passa para 4 páginas e o app avisa; 6/6 correções pela foto exatas. `omr.js` e layouts não mudaram.
 
+## 4h. Senha de entrada (25/11/2026, versão 20261125f, só na versão do GitHub Pages)
+- Ao abrir o app, a tela de entrada pede a senha: os **5 últimos dígitos do CPF do professor**. No 1º acesso em cada aparelho o professor cria a senha (digita duas vezes). Fica só no aparelho (`localStorage` `cp:senhaLocal`, PBKDF2-SHA256 com sal); o CPF nunca vai para o código nem para a internet. Decisão do professor num cartão de escolha.
+- Vale até fechar a aba/app (`sessionStorage`). Botão de cadeado no topo: *Bloquear agora* e *Trocar senha*. 5 erros = 1 minuto de espera.
+- Limite: o site é público e estático; a senha só esconde as telas de quem pega o aparelho. Esquecendo a senha, é preciso apagar os dados do site no navegador (isso apaga também as avaliações; antes, exportar backup).
+- Código: `entradaLocal()`, `telaSenhaLocal()`, `menuLocal()` em `conta.js`. Testado com Playwright: criar, senhas diferentes, senha errada, certa, trocar, bloquear e 5 erros.
+
 ## 5. Folha de respostas e leitura óptica
 
 **QR code**: `VERSÃO|id da avaliação|código do aluno|nº de questões` (ex.: `OMR2|AK3F9QZ1|P07|8`). Nunca contém as respostas; o gabarito fica só no aparelho do professor.

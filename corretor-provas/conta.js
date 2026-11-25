@@ -22,7 +22,7 @@ function guardarSessao(s){ sessao = s; try { s ? localStorage.setItem('cp:sessao
 // ------------------------------------------------------------ início
 async function iniciarApp(){
   registrarSW();
-  if(MODO_LOCAL){ DB_CHAVE = 'db'; await carregarDB(); aba('inicio'); return; }
+  if(MODO_LOCAL){ DB_CHAVE = 'db'; entradaLocal(async () => { await carregarDB(); aba('inicio'); }); return; }
   try { sessao = JSON.parse(localStorage.getItem('cp:sessao') || 'null'); } catch(e){ sessao = null; }
   if(!sessao){ telaLogin(); return; }
   await abrirConta();
@@ -44,6 +44,80 @@ function atualizarTopo(){
   $('#btnConta').textContent = ((ini[0] || '?')[0] + (ini.length > 1 ? ini[ini.length - 1][0] : '')).toUpperCase();
   $('#btnConta').style.display = '';
 }
+
+// ------------------------------------------------------------ senha de entrada (versão sem servidor)
+// No GitHub Pages não há contas. A tela de entrada pede os 5 últimos dígitos do CPF do professor.
+// A senha é criada no 1º acesso e fica só neste aparelho (localStorage), guardada embaralhada (PBKDF2 com sal).
+// Nada do CPF vai para o código nem para a internet. Isso esconde o app de quem pega o aparelho;
+// os dados continuam no navegador, como sempre.
+const SL_CHAVE = 'cp:senhaLocal', SL_ABERTO = 'cp:liberado', SL_ERROS = 'cp:errosSenha';
+let slDepois = null;
+function slLer(k, padrao){ try { return JSON.parse(localStorage.getItem(k) || 'null') || padrao; } catch(e){ return padrao; } }
+function slGravar(k, v){ try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
+function slHex(buf){ return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join(''); }
+async function slHash(senha, sal){
+  const enc = new TextEncoder();
+  if(window.crypto && crypto.subtle){
+    const k = await crypto.subtle.importKey('raw', enc.encode(senha), 'PBKDF2', false, ['deriveBits']);
+    return slHex(await crypto.subtle.deriveBits({name: 'PBKDF2', salt: enc.encode(sal), iterations: 150000, hash: 'SHA-256'}, k, 256));
+  }
+  let h = 2166136261; const t = sal + '|' + senha; for(let i = 0; i < t.length; i++){ h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } return 'f' + (h >>> 0).toString(16);
+}
+function slLiberado(){ try { return sessionStorage.getItem(SL_ABERTO) === '1'; } catch(e){ return false; } }
+function slMarcar(b){ try { b ? sessionStorage.setItem(SL_ABERTO, '1') : sessionStorage.removeItem(SL_ABERTO); } catch(e){} }
+function entradaLocal(depois){
+  slDepois = depois || slDepois;
+  $('#btnConta').innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
+  if(slLiberado() && slLer(SL_CHAVE, null)){ slEntrou(); return; }
+  telaSenhaLocal();
+}
+function slEntrou(){ slMarcar(true); $('#login').classList.remove('on'); $('#login').innerHTML = ''; $('#btnConta').style.display = '';
+  const f = slDepois; slDepois = null; if(f) f(); }
+function slCampo(id, rotulo){ return '<label class="campo"><span>' + rotulo + '</span><input id="' + id + '" type="password" inputmode="numeric" pattern="[0-9]{5}" maxlength="5" autocomplete="off" required placeholder="•••••" style="font-size:22px;letter-spacing:.4em;text-align:center"></label>'; }
+function telaSenhaLocal(msg, modo){
+  const tem = !!slLer(SL_CHAVE, null), criar = !tem || modo === 'trocar';
+  $('#btnConta').style.display = 'none';
+  const L = $('#login'); L.classList.add('on');
+  L.innerHTML = '<div class="login-caixa"><div class="login-logo"><svg width="34" height="34" viewBox="0 0 24 24"><circle cx="7" cy="8" r="3.4" fill="#FF3B5F"/><circle cx="17" cy="8" r="3.4" fill="none" stroke="#fff" stroke-width="1.6"/><circle cx="7" cy="17" r="3.4" fill="none" stroke="#fff" stroke-width="1.6"/><circle cx="17" cy="17" r="3.4" fill="#fff"/></svg></div>' +
+    '<h1>Corretor de Provas</h1><p class="muted" style="margin:4px 0 18px">Provas individuais, correção pela câmera e relatório de notas.</p>' +
+    (msg ? '<div class="alerta" style="margin-bottom:12px">' + esc(msg) + '</div>' : '') +
+    '<form class="card" onsubmit="event.preventDefault();' + (criar ? 'slCriar(' + (modo === 'trocar') + ')' : 'slEntrar()') + '">' +
+    (criar ? '<h2>' + (modo === 'trocar' ? 'Nova senha de entrada' : 'Crie sua senha de entrada') + '</h2>' +
+        '<p class="muted" style="margin-bottom:10px">Use os <b>5 últimos dígitos do seu CPF</b>. A senha fica guardada só neste aparelho e será pedida sempre que o app for aberto.</p>' +
+        slCampo('slS1', 'Os 5 últimos dígitos do CPF') + slCampo('slS2', 'Digite de novo')
+      : '<h2>Entrar</h2>' + slCampo('slS1', 'Senha: os 5 últimos dígitos do seu CPF')) +
+    '<button class="btn acc" id="lgBotao" type="submit" style="margin-top:8px">' + (criar ? 'Salvar e entrar' : 'Entrar') + '</button>' +
+    (modo === 'trocar' ? '<button class="btn sec" type="button" style="margin-top:8px" onclick="slEntrou()">Cancelar</button>' : '') +
+    '</form>' +
+    (criar ? '' : '<p class="lbl" style="text-align:center;margin-top:10px">A senha vale só para este aparelho. Os dados das provas ficam no navegador e não vão para a internet.</p>') +
+    '</div>';
+  setTimeout(() => { const i = $('#slS1'); if(i) i.focus(); }, 50);
+}
+function slValida(v){ return /^\d{5}$/.test(v); }
+async function slCriar(trocando){
+  const a = $('#slS1').value.trim(), b = $('#slS2').value.trim();
+  if(!slValida(a)){ telaSenhaLocal('Digite exatamente 5 números.', trocando ? 'trocar' : null); return; }
+  if(a !== b){ telaSenhaLocal('As duas senhas não são iguais. Tente de novo.', trocando ? 'trocar' : null); return; }
+  const sal = slHex(crypto.getRandomValues(new Uint8Array(16)));
+  slGravar(SL_CHAVE, {sal, hash: await slHash(a, sal)}); slGravar(SL_ERROS, null);
+  if(trocando) toast('Senha trocada.');
+  slEntrou();
+}
+async function slEntrar(){
+  const v = $('#slS1').value.trim(), s = slLer(SL_CHAVE, null), e = slLer(SL_ERROS, {n: 0, ate: 0});
+  if(e.ate > Date.now()){ telaSenhaLocal('Muitas tentativas erradas. Espere ' + Math.ceil((e.ate - Date.now()) / 1000) + ' segundos.'); return; }
+  if(slValida(v) && s && await slHash(v, s.sal) === s.hash){ slGravar(SL_ERROS, null); slEntrou(); return; }
+  e.n = (e.n || 0) + 1; if(e.n >= 5){ e.n = 0; e.ate = Date.now() + 60000; } slGravar(SL_ERROS, e);
+  telaSenhaLocal(e.ate > Date.now() ? 'Senha errada 5 vezes. Espere 1 minuto para tentar de novo.' : 'Senha errada. Use os 5 últimos dígitos do seu CPF.');
+}
+function menuLocal(){
+  abrirFolha('<h2 style="margin-bottom:2px">Entrada do app</h2><p class="lbl">Senha: os 5 últimos dígitos do seu CPF (só neste aparelho)</p>' +
+    '<div class="stack" style="margin-top:14px">' +
+    '<button class="btn" onclick="fecharFolha();bloquearLocal()">Bloquear agora</button>' +
+    '<button class="btn sec" onclick="fecharFolha();telaSenhaLocal(null,\'trocar\')">Trocar senha</button>' +
+    botaoInstalar('btn sec') + '</div>');
+}
+function bloquearLocal(){ slMarcar(false); location.reload(); }
 
 // ------------------------------------------------------------ tela de login
 function telaLogin(msg, modo = 'entrar'){
@@ -90,6 +164,7 @@ async function fazerCadastro(){
 
 // ------------------------------------------------------------ menu da conta
 function menuConta(){
+  if(MODO_LOCAL){ menuLocal(); return; }
   const u = sessao.usuario;
   abrirFolha('<h2 style="margin-bottom:2px">' + esc(u.nome) + '</h2><p class="lbl">' + esc(u.email) + (u.papel === 'admin' ? ' · administrador' : '') + '</p>' +
     '<p class="lbl" style="margin-top:6px">' + textoSync() + '</p>' +
